@@ -1,0 +1,51 @@
+name: zap-model
+channels:
+  - pytorch
+  - conda-forge
+
+dependencies:
+  # Core
+  - python=3.12
+  - pip
+
+  # Keep the BLAS/OpenMP stack consistent on macOS
+  - "libblas=*=*openblas*"
+
+  # Scientific / data stack
+  - numpy
+  - scipy
+  - pandas
+  - polars
+  - networkx
+  - matplotlib
+  - tqdm
+  - tensorboard
+  - tensorstore
+  - pydantic
+  - tyro
+  - pyyaml
+  - ruff
+  - pre-commit
+  - ipython
+  - ipykernel
+  - open3d
+
+  # PyTorch on conda (single OpenMP runtime managed by conda)
+  - pytorch
+  # - torchvision
+  # - torchaudio
+
+  - pip:
+      # fishfuncem deps (installed with --no-deps, so we manage these explicitly)
+      - navis
+      - neuprint-python
+      - python-dotenv
+      - point-cloud-utils
+      - plotly
+      - cloud-volume
+      - fpdf2
+      - typer
+
+      # Then:
+      # pip install --no-deps git+https://github.com/ahrens-fish-lab/fishFuncEM.git@422bb2a
+      # pip install -e .

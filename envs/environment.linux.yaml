@@ -1,0 +1,58 @@
+name: zap-model
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  # Core
+  - python=3.12
+  - pip
+
+  # Use OpenBLAS / LLVM-OpenMP to avoid mixing OpenMP runtimes
+  - "libblas=*=*openblas*"
+  - "liblapack=*=*openblas*"
+  - llvm-openmp
+
+  # Scientific / data stack
+  - numpy
+  - scipy
+  - pandas
+  - polars
+  - networkx
+  - matplotlib
+  - tqdm
+  - tensorboard
+  - tensorstore
+  - pydantic
+  - tyro
+  - pyyaml
+  - ruff
+  - pre-commit
+  - ipython
+  - ipykernel
+  - open3d
+
+  - pip:
+      # fishfuncem deps (installed with --no-deps, so we manage these explicitly)
+      # some of these deps are painfully slow to install
+      - navis
+      - neuprint-python
+      - python-dotenv
+      - point-cloud-utils
+      - plotly
+      - cloud-volume
+      - fpdf2
+      - typer
+
+      # PyTorch with cuda13 wheels
+      - --extra-index-url https://download.pytorch.org/whl/cu130
+      - torch
+      # - torchvision
+      # - torchaudio
+
+      # - torch_geometric==2.7.0
+      # - torchdiffeq
+
+      # Then:
+      # pip install --no-deps git+https://github.com/ahrens-fish-lab/fishFuncEM.git@422bb2a
+      # pip install -e .
