@@ -129,9 +129,7 @@ def _compute_cell_centroids(segmentation: np.ndarray) -> tuple[np.ndarray, int]:
     centroids = np.zeros((num_cells, 3), dtype=np.float64)
     w = [coord.astype(np.float64) for coord in (xi, yi, zi)]
     for axis, wi in enumerate(w):
-        centroids[:, axis] = (
-            np.bincount(cell_ids, weights=wi, minlength=num_cells) / counts
-        )
+        centroids[:, axis] = np.bincount(cell_ids, weights=wi, minlength=num_cells) / counts
 
     zmin, zmax = centroids[:, 2].min(), centroids[:, 2].max()
     print(f"  {num_cells:,} cells, z range [{zmin:.1f}, {zmax:.1f}]", flush=True)
@@ -171,11 +169,13 @@ def main():
     num_timepoints = imaging_sample_index.shape[0]
 
     # Precompute flow-field grid coordinates for all cells: (z/Sz, y/Sy, x/Sx)
-    grid_coords = np.array([
-        centroids[:, 2] / STRIDE_Z,
-        centroids[:, 1] / STRIDE_Y,
-        centroids[:, 0] / STRIDE_X,
-    ])
+    grid_coords = np.array(
+        [
+            centroids[:, 2] / STRIDE_Z,
+            centroids[:, 1] / STRIDE_Y,
+            centroids[:, 0] / STRIDE_X,
+        ]
+    )
 
     # 3. Open flow fields
     ds_flow, time_chunk = _open_flow_fields()
@@ -193,14 +193,20 @@ def main():
         elapsed = time.time() - t0
         rate = t_start / elapsed if elapsed > 0 else 0
         eta = (num_timepoints - t_start) / rate if rate > 0 else 0
-        print(f"  chunk {ci + 1}/{num_chunks}: t=[{t_start}, {t_end})  "
-              f"{rate:.0f} t/s  ETA {eta / 60:.1f} min", flush=True)
+        print(
+            f"  chunk {ci + 1}/{num_chunks}: t=[{t_start}, {t_end})  "
+            f"{rate:.0f} t/s  ETA {eta / 60:.1f} min",
+            flush=True,
+        )
 
         flow_chunk = _read_with_retry(ds_flow[:, :, :, :, t_start:t_end], f"flow chunk {ci}")
 
         for i, t in enumerate(range(t_start, t_end)):
             z_offset = map_coordinates(
-                flow_chunk[2, :, :, :, i], grid_coords, order=3, mode="nearest",
+                flow_chunk[2, :, :, :, i],
+                grid_coords,
+                order=3,
+                mode="nearest",
             )
             corrected_z = centroids[:, 2] + z_offset / 4.0
             corrected_z_int = np.round(corrected_z).astype(np.int32)
@@ -223,9 +229,9 @@ def main():
             "chunk_key_encoding": {"name": "default"},
             "data_type": "int32",
             "codecs": [
-                    {"name": "bytes", "configuration": {"endian": "little"}},
-                    {"name": "blosc", "configuration": {"cname": "zstd", "clevel": 5}},
-                ],
+                {"name": "bytes", "configuration": {"endian": "little"}},
+                {"name": "blosc", "configuration": {"cname": "zstd", "clevel": 5}},
+            ],
         },
         "create": True,
         "delete_existing": True,

@@ -5,6 +5,7 @@ from enum import IntEnum
 
 class Condition(IntEnum):
     """Different stimulus conditions."""
+
     GAIN = 0
     DOTS = 1
     FLASH = 2
@@ -19,15 +20,15 @@ class Condition(IntEnum):
 # (start, end) offsets along the T dimension, indexed by Condition
 # e.g., OFFSETS[Condition.GAIN]  # (0, 649)
 OFFSETS = (
-    (0, 649),       # GAIN
-    (649, 2422),    # DOTS
-    (2422, 3078),   # FLASH
-    (3078, 3735),   # TAXIS
-    (3735, 5047),   # TURNING
-    (5047, 5638),   # POSITION
-    (5638, 6623),   # OPEN_LOOP
-    (6623, 7279),   # ROTATION
-    (7279, 7879),   # DARK
+    (0, 649),  # GAIN
+    (649, 2422),  # DOTS
+    (2422, 3078),  # FLASH
+    (3078, 3735),  # TAXIS
+    (3735, 5047),  # TURNING
+    (5047, 5638),  # POSITION
+    (5638, 6623),  # OPEN_LOOP
+    (6623, 7279),  # ROTATION
+    (7279, 7879),  # DARK
 )
 
 # frames excluded at the beginning and end of each condition
