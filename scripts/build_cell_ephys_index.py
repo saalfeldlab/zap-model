@@ -8,10 +8,11 @@ For each cell and timepoint, computes the ephys sample index by:
 4. Indexing: cell_ephys_index[t, cell] = imaging_sample_index[t, corrected_z]
 
 Usage:
-    python scripts/build_cell_ephys_index.py
+    python scripts/build_cell_ephys_index.py <output_dir>
 """
 
 import json
+import sys
 import time
 
 import numpy as np
@@ -28,8 +29,9 @@ RAW_EPHYS_PATH = (
     "/groups/saalfeld/saalfeldlab/zapbench-release/volumes/20240930"
     "/stimuli_raw/stimuli_and_ephys.10chFlt"
 )
+DATA_ROOT = "/groups/saalfeld/saalfeldlab/zapbench-release/volumes/20240930"
 GCS_URI = "gs://zapbench-release/volumes/20240930"
-OUTPUT_PATH = "cell_ephys_index.zarr"
+OUTPUT_FILENAME = "cell_ephys_index.zarr"
 
 # Flow field grid strides (aligned-space pixels per grid point)
 STRIDE_X = 16
@@ -111,10 +113,11 @@ def _read_with_retry(store, label=""):
 
 
 def _load_segmentation() -> np.ndarray:
-    """Load segmentation volume from GCS."""
-    print(f"Loading segmentation from {GCS_URI}/segmentation ...", flush=True)
-    ds = ts.open({"open": True, "driver": "zarr3", "kvstore": f"{GCS_URI}/segmentation"}).result()
-    seg = _read_with_retry(ds, label="segmentation")
+    """Load segmentation volume from local filesystem."""
+    seg_path = f"{DATA_ROOT}/segmentation"
+    print(f"Loading segmentation from {seg_path} ...", flush=True)
+    ds = ts.open({"open": True, "driver": "zarr3", "kvstore": seg_path}).result()
+    seg = ds.read().result()
     print(f"  shape: {seg.shape}, dtype: {seg.dtype}", flush=True)
     return np.asarray(seg)
 
@@ -151,6 +154,12 @@ def _open_flow_fields() -> tuple[ts.TensorStore, int]:
 
 
 def main():
+    if len(sys.argv) != 2:
+        print("usage: python scripts/build_cell_ephys_index.py <output_dir>", file=sys.stderr)
+        sys.exit(1)
+    output_dir = sys.argv[1]
+    output_path = f"{output_dir}/{OUTPUT_FILENAME}"
+
     # 1. Load segmentation and compute cell centroids
     segmentation = _load_segmentation()
     num_z_slices = segmentation.shape[2]
@@ -203,10 +212,10 @@ def main():
             cell_ephys_index[t, :] = imaging_sample_index[t, corrected_z_int]
 
     # 5. Write to zarr
-    print(f"Writing {OUTPUT_PATH} [{num_timepoints}, {num_cells}] ...", flush=True)
+    print(f"Writing {output_path} [{num_timepoints}, {num_cells}] ...", flush=True)
     spec = {
         "driver": "zarr3",
-        "kvstore": {"driver": "file", "path": OUTPUT_PATH},
+        "kvstore": {"driver": "file", "path": output_path},
         "metadata": {
             "shape": [num_timepoints, num_cells],
             "chunk_grid": {
