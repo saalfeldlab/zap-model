@@ -19,6 +19,7 @@ import tensorstore as ts
 from scipy.ndimage import map_coordinates
 from scipy.signal import find_peaks
 from scipy.spatial import KDTree
+from tqdm import tqdm
 
 from zap_model.data.ephys import NUM_FRAMES, EphysChannel, load_raw
 
@@ -184,20 +185,9 @@ def main():
     cell_ephys_index = np.empty((num_timepoints, num_cells), dtype=np.int32)
     num_chunks = (num_timepoints + time_chunk - 1) // time_chunk
 
-    print(f"\nProcessing {num_timepoints} timepoints in {num_chunks} chunks ...", flush=True)
-    t0 = time.time()
-
-    for ci in range(num_chunks):
+    for ci in tqdm(range(num_chunks), desc="flow field chunks"):
         t_start = ci * time_chunk
         t_end = min(t_start + time_chunk, num_timepoints)
-        elapsed = time.time() - t0
-        rate = t_start / elapsed if elapsed > 0 else 0
-        eta = (num_timepoints - t_start) / rate if rate > 0 else 0
-        print(
-            f"  chunk {ci + 1}/{num_chunks}: t=[{t_start}, {t_end})  "
-            f"{rate:.0f} t/s  ETA {eta / 60:.1f} min",
-            flush=True,
-        )
 
         flow_chunk = _read_with_retry(ds_flow[:, :, :, :, t_start:t_end], f"flow chunk {ci}")
 
@@ -211,9 +201,6 @@ def main():
             corrected_z = centroids[:, 2] + z_offset / 4.0
             corrected_z_int = np.round(corrected_z).astype(np.int32)
             cell_ephys_index[t, :] = imaging_sample_index[t, corrected_z_int]
-
-    elapsed = time.time() - t0
-    print(f"\nDone in {elapsed / 60:.1f} min", flush=True)
 
     # 5. Write to zarr
     print(f"Writing {OUTPUT_PATH} [{num_timepoints}, {num_cells}] ...", flush=True)

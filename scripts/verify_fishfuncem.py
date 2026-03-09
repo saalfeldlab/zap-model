@@ -18,3 +18,4 @@ neuron_data = client.fetch_custom(
     format="pandas",
 )
 print(neuron_data)
+print("Successfully queried neuprint")
