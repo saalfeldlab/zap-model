@@ -5,7 +5,10 @@ Writes parquet files to a timestamped directory and updates a `latest` symlink
 on success. Directory name encodes the date/time and git SHA of the code.
 
 Usage:
-    python scripts/download_neuprint.py <output_root>
+    python scripts/download_neuprint.py
+
+Paths are read from environment variables (see .env.example):
+    NEUPRINT_DOWNLOAD_DIR
 
 Output structure:
     <output_root>/
@@ -15,11 +18,12 @@ Output structure:
     └── latest -> 20260309_143022_a1b2c3d/
 """
 
+import os
 import subprocess
-import sys
 from datetime import datetime
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fishfuncem.em.NeuprintServer import NeuprintServer
 
 from zap_model.data.em import fetch_connections, fetch_soma_info
@@ -44,10 +48,8 @@ def _git_sha() -> str:
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("usage: python scripts/download_neuprint.py <output_root>", file=sys.stderr)
-        sys.exit(1)
-    output_root = Path(sys.argv[1])
+    load_dotenv()
+    output_root = Path(os.environ["NEUPRINT_DOWNLOAD_DIR"])
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     sha = _git_sha()

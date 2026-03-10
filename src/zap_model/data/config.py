@@ -7,6 +7,7 @@ from pathlib import Path  # noqa: TC003 — pydantic needs this at runtime
 
 from pydantic import BaseModel, model_validator
 
+from zap_model.data.activity import MIN_MAX_VALUES
 from zap_model.data.conditions import (
     HOLDOUT_CONDITIONS,
     OFFSETS,
@@ -16,7 +17,7 @@ from zap_model.data.conditions import (
     VAL_FRACTION,
     Condition,
 )
-from zap_model.data.functional import MIN_MAX_VALUES
+from zap_model.env import env_derived_path
 
 
 class FrameRange(BaseModel, frozen=True, extra="forbid"):
@@ -38,9 +39,12 @@ class ConditionRanges(BaseModel, frozen=True, extra="forbid"):
 
 
 class ActivityConfig(BaseModel, extra="forbid"):
-    """Configuration for activity trace data."""
+    """Configuration for activity trace data.
 
-    traces_path: Path
+    Activity is measured via dF/F as described in the zapbench paper.
+    """
+
+    traces_path: Path = env_derived_path("ZAPBENCH_LOCAL_PATH", "traces")
     min_value: float = MIN_MAX_VALUES[0]
     max_value: float = MIN_MAX_VALUES[1]
 
@@ -48,7 +52,7 @@ class ActivityConfig(BaseModel, extra="forbid"):
 class NeuprintConfig(BaseModel, extra="forbid"):
     """Configuration for neuprint EM data."""
 
-    data_dir: Path
+    data_dir: Path = env_derived_path("NEUPRINT_DOWNLOAD_DIR", "latest")
     min_weight: int = 1
     # from fishfuncem NeuprintServer.tracing_status_filter
     status_filter: tuple[str, ...] = (

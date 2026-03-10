@@ -8,30 +8,26 @@ For each cell and timepoint, computes the ephys sample index by:
 4. Indexing: cell_ephys_index[t, cell] = imaging_sample_index[t, corrected_z]
 
 Usage:
-    python scripts/build_cell_ephys_index.py <output_dir>
+    python scripts/build_cell_ephys_index.py
+
+Paths are read from environment variables (see .env.example):
+    ZAPBENCH_LOCAL_PATH, ZAPBENCH_GCS_URI, ZAP_CELL_EPHYS_INDEX_PATH
 """
 
 import json
-import sys
+import os
 import time
+from pathlib import Path
 
 import numpy as np
 import tensorstore as ts
+from dotenv import load_dotenv
 from scipy.ndimage import map_coordinates
 from scipy.signal import find_peaks
 from scipy.spatial import KDTree
 from tqdm import tqdm
 
 from zap_model.data.ephys import NUM_FRAMES, EphysChannel, load_raw
-
-# Paths
-RAW_EPHYS_PATH = (
-    "/groups/saalfeld/saalfeldlab/zapbench-release/volumes/20240930"
-    "/stimuli_raw/stimuli_and_ephys.10chFlt"
-)
-DATA_ROOT = "/groups/saalfeld/saalfeldlab/zapbench-release/volumes/20240930"
-GCS_URI = "gs://zapbench-release/volumes/20240930"
-OUTPUT_FILENAME = "cell_ephys_index.zarr"
 
 # Flow field grid strides (aligned-space pixels per grid point)
 STRIDE_X = 16
@@ -112,9 +108,9 @@ def _read_with_retry(store, label=""):
     raise TimeoutError(msg)
 
 
-def _load_segmentation() -> np.ndarray:
+def _load_segmentation(data_root: str) -> np.ndarray:
     """Load segmentation volume from local filesystem."""
-    seg_path = f"{DATA_ROOT}/segmentation"
+    seg_path = f"{data_root}/segmentation"
     print(f"Loading segmentation from {seg_path} ...", flush=True)
     ds = ts.open({"open": True, "driver": "zarr3", "kvstore": seg_path}).result()
     seg = ds.read().result()
@@ -140,12 +136,12 @@ def _compute_cell_centroids(segmentation: np.ndarray) -> tuple[np.ndarray, int]:
     return centroids, num_cells
 
 
-def _open_flow_fields() -> tuple[ts.TensorStore, int]:
+def _open_flow_fields(gcs_uri: str) -> tuple[ts.TensorStore, int]:
     """Open flow fields from GCS and return (store, time_chunk_size)."""
-    print(f"Opening flow fields from {GCS_URI}/flow_fields ...", flush=True)
-    ds = ts.open({"open": True, "driver": "zarr3", "kvstore": f"{GCS_URI}/flow_fields"}).result()
+    print(f"Opening flow fields from {gcs_uri}/flow_fields ...", flush=True)
+    ds = ts.open({"open": True, "driver": "zarr3", "kvstore": f"{gcs_uri}/flow_fields"}).result()
 
-    kvstore = ts.KvStore.open(f"{GCS_URI}/flow_fields/").result()
+    kvstore = ts.KvStore.open(f"{gcs_uri}/flow_fields/").result()
     meta = json.loads(kvstore.read("zarr.json").result().value)
     time_chunk = meta["chunk_grid"]["configuration"]["chunk_shape"][-1]
 
@@ -154,21 +150,22 @@ def _open_flow_fields() -> tuple[ts.TensorStore, int]:
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("usage: python scripts/build_cell_ephys_index.py <output_dir>", file=sys.stderr)
-        sys.exit(1)
-    output_dir = sys.argv[1]
-    output_path = f"{output_dir}/{OUTPUT_FILENAME}"
+    load_dotenv()
+
+    data_root = os.environ["ZAPBENCH_LOCAL_PATH"]
+    gcs_uri = os.environ["ZAPBENCH_GCS_URI"]
+    output_path = os.environ["ZAP_CELL_EPHYS_INDEX_PATH"]
+    raw_ephys_path = str(Path(data_root, "stimuli_raw", "stimuli_and_ephys.10chFlt"))
 
     # 1. Load segmentation and compute cell centroids
-    segmentation = _load_segmentation()
+    segmentation = _load_segmentation(data_root)
     num_z_slices = segmentation.shape[2]
     centroids, num_cells = _compute_cell_centroids(segmentation)
     del segmentation
 
     # 2. Compute imaging_sample_index from raw ephys TTL
-    print(f"Loading raw ephys from {RAW_EPHYS_PATH}", flush=True)
-    raw = load_raw(RAW_EPHYS_PATH)
+    print(f"Loading raw ephys from {raw_ephys_path}", flush=True)
+    raw = load_raw(raw_ephys_path)
     print(f"  shape: {raw.shape}", flush=True)
 
     print("Computing imaging_sample_index from TTL ...", flush=True)
@@ -188,7 +185,7 @@ def main():
     )
 
     # 3. Open flow fields
-    ds_flow, time_chunk = _open_flow_fields()
+    ds_flow, time_chunk = _open_flow_fields(gcs_uri)
 
     # 4. Build cell_ephys_index
     cell_ephys_index = np.empty((num_timepoints, num_cells), dtype=np.int32)

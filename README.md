@@ -35,6 +35,26 @@ python scripts/verify_fishfuncem.py
 This queries neuprint and prints 5 rows. Requires `NEUPRINT_TOKEN` or
 `NEUPRINT_APPLICATION_CREDENTIALS` in your environment (see fishfuncem docs).
 
+### Data paths
+
+Copy the example env file and fill in your local paths:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Purpose | Used by |
+|---|---|---|
+| `ZAPBENCH_LOCAL_PATH` | Local root for zapbench release data | configs, `build_cell_ephys_index.py` |
+| `ZAPBENCH_GCS_URI` | GCS root for remote data | `build_cell_ephys_index.py` |
+| `ZAP_CELL_EPHYS_INDEX_PATH` | Path to `cell_ephys_index.zarr` (computed output) | configs, `build_cell_ephys_index.py` |
+| `NEUPRINT_DOWNLOAD_DIR` | Neuprint download root | configs, `download_neuprint.py` |
+| `TRAINING_DIR` | Training run output directory | `TrainingConfig` |
+
+The `.env` file is gitignored. When set, these variables provide defaults for
+config fields (`ActivityConfig.traces_path`, `NeuprintConfig.data_dir`,
+`TrainingConfig.run_dir`) and replace hardcoded paths in scripts.
+
 ### fishfuncem
 
 fishfuncem is installed with `--no-deps` because its `pyproject.toml` pins

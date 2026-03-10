@@ -3,6 +3,7 @@
 import unittest
 from pathlib import Path
 
+from zap_model.data.activity import MIN_MAX_VALUES
 from zap_model.data.conditions import (
     HOLDOUT_CONDITIONS,
     OFFSETS,
@@ -18,7 +19,6 @@ from zap_model.data.config import (
     DataConfig,
     IdMapping,
 )
-from zap_model.data.functional import MIN_MAX_VALUES
 
 
 class TestDataConfig(unittest.TestCase):

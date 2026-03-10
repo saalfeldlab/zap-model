@@ -28,3 +28,7 @@ Thumbs.db
 
 # Ruff
 .ruff_cache/
+
+# Run directories (possibly in repo root)
+data/
+runs/
