@@ -10,24 +10,22 @@ For each cell and timepoint, computes the ephys sample index by:
 Usage:
     python scripts/build_cell_ephys_index.py
 
-Paths are read from environment variables (see .env.example):
+Paths are configured in src/zap_model/local_paths.py (see local_paths.example.py):
     ZAPBENCH_LOCAL_PATH, ZAPBENCH_GCS_URI, ZAP_CELL_EPHYS_INDEX_PATH
 """
 
 import json
-import os
 import time
-from pathlib import Path
 
 import numpy as np
 import tensorstore as ts
-from dotenv import load_dotenv
 from scipy.ndimage import map_coordinates
 from scipy.signal import find_peaks
 from scipy.spatial import KDTree
 from tqdm import tqdm
 
 from zap_model.data.ephys import NUM_FRAMES, EphysChannel, load_raw
+from zap_model.local_paths import ZAP_CELL_EPHYS_INDEX_PATH, ZAPBENCH_GCS_URI, ZAPBENCH_LOCAL_PATH
 
 # Flow field grid strides (aligned-space pixels per grid point)
 STRIDE_X = 16
@@ -150,12 +148,10 @@ def _open_flow_fields(gcs_uri: str) -> tuple[ts.TensorStore, int]:
 
 
 def main():
-    load_dotenv()
-
-    data_root = os.environ["ZAPBENCH_LOCAL_PATH"]
-    gcs_uri = os.environ["ZAPBENCH_GCS_URI"]
-    output_path = os.environ["ZAP_CELL_EPHYS_INDEX_PATH"]
-    raw_ephys_path = str(Path(data_root, "stimuli_raw", "stimuli_and_ephys.10chFlt"))
+    data_root = str(ZAPBENCH_LOCAL_PATH)
+    gcs_uri = ZAPBENCH_GCS_URI
+    output_path = str(ZAP_CELL_EPHYS_INDEX_PATH)
+    raw_ephys_path = str(ZAPBENCH_LOCAL_PATH / "stimuli_raw" / "stimuli_and_ephys.10chFlt")
 
     # 1. Load segmentation and compute cell centroids
     segmentation = _load_segmentation(data_root)

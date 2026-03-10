@@ -37,3 +37,6 @@ select = [
     "PLE",  # pylint errors
     "PLW",  # pylint warnings
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"src/zap_model/local_paths.example.py" = ["N999"]

@@ -7,7 +7,7 @@ on success. Directory name encodes the date/time and git SHA of the code.
 Usage:
     python scripts/download_neuprint.py
 
-Paths are read from environment variables (see .env.example):
+Paths are configured in src/zap_model/local_paths.py (see local_paths.example.py):
     NEUPRINT_DOWNLOAD_DIR
 
 Output structure:
@@ -18,15 +18,13 @@ Output structure:
     └── latest -> 20260309_143022_a1b2c3d/
 """
 
-import os
 import subprocess
 from datetime import datetime
-from pathlib import Path
 
-from dotenv import load_dotenv
 from fishfuncem.em.NeuprintServer import NeuprintServer
 
 from zap_model.data.em import fetch_connections, fetch_soma_info
+from zap_model.local_paths import NEUPRINT_DOWNLOAD_DIR
 
 
 def _git_sha() -> str:
@@ -48,8 +46,7 @@ def _git_sha() -> str:
 
 
 def main():
-    load_dotenv()
-    output_root = Path(os.environ["NEUPRINT_DOWNLOAD_DIR"])
+    output_root = NEUPRINT_DOWNLOAD_DIR
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     sha = _git_sha()

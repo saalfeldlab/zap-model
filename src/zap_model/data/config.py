@@ -17,7 +17,15 @@ from zap_model.data.conditions import (
     VAL_FRACTION,
     Condition,
 )
-from zap_model.env import env_derived_path
+
+try:
+    from zap_model.local_paths import NEUPRINT_DOWNLOAD_DIR, ZAPBENCH_LOCAL_PATH
+
+    _TRACES_DEFAULT: Path = ZAPBENCH_LOCAL_PATH / "traces"
+    _NEUPRINT_DEFAULT: Path = NEUPRINT_DOWNLOAD_DIR / "latest"
+except ImportError:
+    _TRACES_DEFAULT = ...  # type: ignore[assignment]
+    _NEUPRINT_DEFAULT = ...  # type: ignore[assignment]
 
 
 class FrameRange(BaseModel, frozen=True, extra="forbid"):
@@ -44,7 +52,7 @@ class ActivityConfig(BaseModel, extra="forbid"):
     Activity is measured via dF/F as described in the zapbench paper.
     """
 
-    traces_path: Path = env_derived_path("ZAPBENCH_LOCAL_PATH", "traces")
+    traces_path: Path = _TRACES_DEFAULT
     min_value: float = MIN_MAX_VALUES[0]
     max_value: float = MIN_MAX_VALUES[1]
 
@@ -52,7 +60,7 @@ class ActivityConfig(BaseModel, extra="forbid"):
 class NeuprintConfig(BaseModel, extra="forbid"):
     """Configuration for neuprint EM data."""
 
-    data_dir: Path = env_derived_path("NEUPRINT_DOWNLOAD_DIR", "latest")
+    data_dir: Path = _NEUPRINT_DEFAULT
     min_weight: int = 1
     # from fishfuncem NeuprintServer.tracing_status_filter
     status_filter: tuple[str, ...] = (

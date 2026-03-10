@@ -10,7 +10,7 @@ build/
 # Environments
 .venv/
 venv/
-*.env
+src/zap_model/local_paths.py
 
 # IDE
 .vscode/*

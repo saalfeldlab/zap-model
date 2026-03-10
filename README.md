@@ -37,10 +37,10 @@ This queries neuprint and prints 5 rows. Requires `NEUPRINT_TOKEN` or
 
 ### Data paths
 
-Copy the example env file and fill in your local paths:
+Copy the example paths file and fill in your local paths:
 
 ```bash
-cp .env.example .env
+cp src/zap_model/local_paths.example.py src/zap_model/local_paths.py
 ```
 
 | Variable | Purpose | Used by |
@@ -51,9 +51,9 @@ cp .env.example .env
 | `NEUPRINT_DOWNLOAD_DIR` | Neuprint download root | configs, `download_neuprint.py` |
 | `TRAINING_DIR` | Training run output directory | `TrainingConfig` |
 
-The `.env` file is gitignored. When set, these variables provide defaults for
-config fields (`ActivityConfig.traces_path`, `NeuprintConfig.data_dir`,
-`TrainingConfig.run_dir`) and replace hardcoded paths in scripts.
+The `local_paths.py` file is gitignored. These variables provide defaults for
+config fields (`ActivityConfig.traces_path`, `NeuprintConfig.data_dir`) and
+are used directly in scripts.
 
 ### fishfuncem
 

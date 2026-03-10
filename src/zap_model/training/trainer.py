@@ -24,7 +24,6 @@ import yaml
 from pydantic import BaseModel, model_validator
 from torch.utils.tensorboard import SummaryWriter
 
-from zap_model.env import env_path
 from zap_model.training.loss import LossAccumulator
 from zap_model.training.util import get_device
 
@@ -39,10 +38,9 @@ log = logging.getLogger(__name__)
 class TrainingConfig(BaseModel, extra="forbid"):
     """Configuration for the training loop."""
 
-    run_dir: Path = env_path("TRAINING_DIR")
     epochs: int = 100
     batch_size: int
-    batches_per_epoch: int
+    batches_per_epoch: int = 100
     lr: float = 1e-4
     weight_decay: float = 0.0
     grad_clip_norm: float | None = 1.0
@@ -67,6 +65,7 @@ def train(
     train_iter: Iterator[Tensor],
     val_iter: Iterator[Tensor],
     cfg: TrainingConfig,
+    run_dir: Path,
 ) -> Path:
     """Run the training loop and return the path to the best checkpoint.
 
@@ -83,13 +82,13 @@ def train(
     model = model.to(device)
 
     # Directories
-    ckpt_dir = cfg.run_dir / "checkpoints"
+    ckpt_dir = run_dir / "checkpoints"
     ckpt_dir.mkdir(parents=True, exist_ok=True)
-    tb_dir = cfg.run_dir / "tensorboard"
+    tb_dir = run_dir / "tensorboard"
     tb_dir.mkdir(parents=True, exist_ok=True)
 
     # Save config
-    with open(cfg.run_dir / "training_config.yaml", "w") as f:
+    with open(run_dir / "training_config.yaml", "w") as f:
         yaml.dump(cfg.model_dump(mode="json"), f, default_flow_style=False)
 
     # Optimizer
