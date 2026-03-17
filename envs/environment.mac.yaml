@@ -31,7 +31,7 @@ dependencies:
   - open3d
 
   # PyTorch on conda (single OpenMP runtime managed by conda)
-  - pytorch
+  - pytorch>=2.10
   # - torchvision
   # - torchaudio
 

@@ -52,7 +52,7 @@ class EEDModel(nn.Module):
         """Single step: encode → evolve → decode."""
         return self.decode(self.evolve(self.encode(x)))
 
-    @torch.compile(mode="reduce-overhead")
+    @torch.compile(mode="reduce-overhead", disable=torch.backends.mps.is_available())
     def training_step(self, batch: Tensor) -> EEDLosses:
         """Compute rollout loss over ``cfg.rollout_steps`` time steps.
 
