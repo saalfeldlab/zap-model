@@ -135,25 +135,31 @@ def train(
             scheduler.step()
 
         # --- Validate ---
-        model.eval()
-        val_acc = LossAccumulator()
-        with torch.no_grad():
-            for _ in range(cfg.batches_per_epoch):
-                batch = next(val_iter)
-                losses = model.training_step(batch)
-                val_acc.accumulate(losses)
+        val_batch = next(val_iter, None)
+        if val_batch is not None:
+            model.eval()
+            val_acc = LossAccumulator()
+            with torch.no_grad():
+                val_acc.accumulate(model.training_step(val_batch))
+                for _ in range(cfg.batches_per_epoch - 1):
+                    val_batch = next(val_iter, None)
+                    if val_batch is None:
+                        break
+                    val_acc.accumulate(model.training_step(val_batch))
 
-        val_means = val_acc.mean()
-        for key, val in val_means.items():
-            writer.add_scalar(f"val/{key}", val, global_step)
+            val_means = val_acc.mean()
+            for key, val in val_means.items():
+                writer.add_scalar(f"val/{key}", val, global_step)
 
-        val_total = val_means["total"]
-        log.info("epoch %d  val_total=%.6f", epoch, val_total)
+            val_total = val_means["total"]
+            log.info("epoch %d  val_total=%.6f", epoch, val_total)
 
-        # Best checkpoint
-        if val_total < best_val_loss:
-            best_val_loss = val_total
-            torch.save(model.state_dict(), best_ckpt_path)
+            # Best checkpoint
+            if val_total < best_val_loss:
+                best_val_loss = val_total
+                torch.save(model.state_dict(), best_ckpt_path)
+        else:
+            log.info("epoch %d  (no validation data)", epoch)
 
         # Periodic checkpoint
         if cfg.checkpoint_every and epoch % cfg.checkpoint_every == 0:

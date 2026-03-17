@@ -58,11 +58,6 @@ def _infinite_shuffled_batches(
             yield traces[offsets]
 
 
-def _empty_iterator() -> Iterator[Tensor]:
-    """Yield nothing — placeholder for val iterator."""
-    return iter(())
-
-
 def make_eed_data(
     activity: ActivityData,
     splits: ConditionSplitConfig,
@@ -93,7 +88,7 @@ def make_eed_data(
     starts = torch.tensor(start_list, dtype=torch.long, device=device)
 
     train_iter = _infinite_shuffled_batches(traces, starts, window_size, batch_size)
-    val_iter = _empty_iterator()
+    val_iter = iter(())
 
     return EEDData(
         train_iter=train_iter,
