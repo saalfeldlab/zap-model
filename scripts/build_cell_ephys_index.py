@@ -11,7 +11,7 @@ Usage:
     python scripts/build_cell_ephys_index.py
 
 Paths are configured in src/zap_model/local_paths.py (see local_paths.example.py):
-    ZAPBENCH_LOCAL_PATH, ZAPBENCH_GCS_URI, ZAP_CELL_EPHYS_INDEX_PATH
+    ZAPBENCH_LOCAL_PATH, ZAPBENCH_GCS_URI
 """
 
 import json
@@ -24,8 +24,8 @@ from scipy.signal import find_peaks
 from scipy.spatial import KDTree
 from tqdm import tqdm
 
-from zap_model.data.ephys import NUM_FRAMES, EphysChannel, load_raw
-from zap_model.local_paths import ZAP_CELL_EPHYS_INDEX_PATH, ZAPBENCH_GCS_URI, ZAPBENCH_LOCAL_PATH
+from zap_model.data.ephys import NUM_FRAMES, ZAP_CELL_EPHYS_INDEX_PATH, EphysChannel, load_raw
+from zap_model.local_paths import ZAPBENCH_GCS_URI, ZAPBENCH_LOCAL_PATH
 
 # Flow field grid strides (aligned-space pixels per grid point)
 STRIDE_X = 16

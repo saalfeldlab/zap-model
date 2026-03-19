@@ -8,7 +8,7 @@ Usage:
     python scripts/download_neuprint.py
 
 Paths are configured in src/zap_model/local_paths.py (see local_paths.example.py):
-    NEUPRINT_DOWNLOAD_DIR
+    OUTPUT_DATA_DIR
 
 Output structure:
     <output_root>/
@@ -24,7 +24,7 @@ from datetime import datetime
 from fishfuncem.em.NeuprintServer import NeuprintServer
 
 from zap_model.data.em import fetch_connections, fetch_soma_info
-from zap_model.local_paths import NEUPRINT_DOWNLOAD_DIR
+from zap_model.local_paths import OUTPUT_DATA_DIR
 
 
 def _git_sha() -> str:
@@ -46,7 +46,7 @@ def _git_sha() -> str:
 
 
 def main():
-    output_root = NEUPRINT_DOWNLOAD_DIR
+    output_root = OUTPUT_DATA_DIR / "neuprint_data"
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     sha = _git_sha()

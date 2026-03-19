@@ -38,5 +38,8 @@ select = [
     "PLW",  # pylint warnings
 ]
 
+[tool.ruff.lint.pep8-naming]
+ignore-names = ["W"]
+
 [tool.ruff.lint.per-file-ignores]
 "src/zap_model/local_paths.example.py" = ["N999"]

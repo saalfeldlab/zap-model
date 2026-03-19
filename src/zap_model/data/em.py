@@ -3,10 +3,19 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
+import numpy as np
 import polars as pl
+import scipy.sparse
 from fishfuncem.utils.coords import voxel_to_nm
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from zap_model.data.config import NeuprintConfig
 
 
 class SomaCol(StrEnum):
@@ -94,3 +103,121 @@ def fetch_connections(
             results.append(executor.submit(client.fetch_custom, q))
 
     return pl.concat([pl.from_dataframe(r.result()) for r in results])
+
+
+@dataclass
+class Connectivity:
+    """Sparse connectivity matrix with neuron ID mapping.
+
+    Attributes:
+        W: (N, N) sparse CSC matrix. W[i, j] = synapse count from neuron i to neuron j.
+            CSC layout is optimal for computing post-synaptic input: ``W.T @ activity``
+            is a CSR @ dense operation on the transpose view.
+        body_ids: (N,) array of neuprint body IDs, one per matrix row/col.
+    """
+
+    W: scipy.sparse.csc_matrix
+    body_ids: np.ndarray
+
+    def save(self, path: Path) -> None:
+        """Save to a zarr3 directory.
+
+        Layout::
+
+            path/
+                pre/          (nnz,) int32 — pre-synaptic matrix indices
+                post/         (nnz,) int32 — post-synaptic matrix indices
+                weight/       (nnz,) float32 — synapse counts
+                neuron_ids/   (N,) int64 — body IDs
+                metadata.json {\"num_neurons\": N}
+        """
+        import json
+
+        from zap_model.data.zarr import write_array
+
+        path.mkdir(parents=True, exist_ok=True)
+
+        coo = self.W.tocoo()
+        write_array(path / "pre", coo.row.astype(np.int32))
+        write_array(path / "post", coo.col.astype(np.int32))
+        write_array(path / "weight", coo.data.astype(np.float32))
+        write_array(path / "neuron_ids", self.body_ids.astype(np.int64))
+
+        metadata = {"num_neurons": self.W.shape[0]}
+        (path / "metadata.json").write_text(json.dumps(metadata))
+
+    @classmethod
+    def load(cls, path: Path) -> Connectivity:
+        """Load from a zarr3 directory written by :meth:`save`."""
+        import json
+
+        from zap_model.data.zarr import read_array
+
+        pre = read_array(path / "pre")
+        post = read_array(path / "post")
+        weight = read_array(path / "weight")
+        neuron_ids = read_array(path / "neuron_ids")
+
+        n = json.loads((path / "metadata.json").read_text())["num_neurons"]
+
+        W = scipy.sparse.csc_matrix(
+            (weight.astype(np.float32), (pre.astype(np.int32), post.astype(np.int32))),
+            shape=(n, n),
+        )
+        return cls(W=W, body_ids=neuron_ids)
+
+
+def build_connectivity(
+    neuprint_cfg: NeuprintConfig,
+    neuron_ids_path: Path | None = None,
+) -> Connectivity:
+    """Build a sparse connectivity matrix from downloaded neuprint parquet files.
+
+    Args:
+        neuprint_cfg: Neuprint configuration specifying ``data_dir``, ``min_weight``,
+            and ``status_filter``.
+        neuron_ids_path: Optional parquet file with an ``id`` column listing body IDs
+            to include. When None, all neurons passing the status filter are used.
+
+    Returns:
+        A :class:`Connectivity` with the sparse weight matrix and body ID array.
+    """
+    data_dir = neuprint_cfg.data_dir
+    soma_df = pl.read_parquet(data_dir / "soma.parquet")
+    conn_df = pl.read_parquet(data_dir / "connections.parquet")
+
+    # Filter soma by tracing status
+    soma_df = soma_df.filter(pl.col(SomaCol.STATUS).is_in(neuprint_cfg.status_filter))
+
+    # Subset to requested neuron IDs
+    if neuron_ids_path is not None:
+        ids_df = pl.read_parquet(neuron_ids_path)
+        soma_df = soma_df.join(ids_df.select(SomaCol.ID), on=SomaCol.ID, how="inner")
+
+    # Sort body IDs for deterministic matrix ordering
+    body_ids = soma_df[SomaCol.ID].sort().to_numpy()
+    n = len(body_ids)
+    id_to_idx = {int(bid): idx for idx, bid in enumerate(body_ids)}
+
+    # Filter connections: both endpoints in neuron set, min weight
+    id_set = set(id_to_idx)
+    conn_df = conn_df.filter(
+        pl.col(ConnCol.ID_PRE).is_in(id_set)
+        & pl.col(ConnCol.ID_POST).is_in(id_set)
+        & (pl.col(ConnCol.WEIGHT) >= neuprint_cfg.min_weight)
+    )
+
+    # Map body IDs to matrix indices
+    pre_ids = conn_df[ConnCol.ID_PRE].to_numpy()
+    post_ids = conn_df[ConnCol.ID_POST].to_numpy()
+    weights = conn_df[ConnCol.WEIGHT].to_numpy()
+
+    pre_idx = np.array([id_to_idx[int(x)] for x in pre_ids], dtype=np.int32)
+    post_idx = np.array([id_to_idx[int(x)] for x in post_ids], dtype=np.int32)
+
+    W = scipy.sparse.csc_matrix(
+        (weights.astype(np.float32), (pre_idx, post_idx)),
+        shape=(n, n),
+    )
+
+    return Connectivity(W=W, body_ids=body_ids)

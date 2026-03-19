@@ -36,10 +36,9 @@ cp src/zap_model/local_paths.example.py src/zap_model/local_paths.py
 
 | Variable | Purpose | Used by |
 |---|---|---|
-| `ZAPBENCH_LOCAL_PATH` | Local root for zapbench release data | configs, `build_cell_ephys_index.py` |
+| `ZAPBENCH_LOCAL_PATH` | Local root for zapbench release data (read-only) | configs, `build_cell_ephys_index.py` |
 | `ZAPBENCH_GCS_URI` | GCS root for remote data | `build_cell_ephys_index.py` |
-| `ZAP_CELL_EPHYS_INDEX_PATH` | Path to `cell_ephys_index.zarr` (computed output) | configs, `build_cell_ephys_index.py` |
-| `NEUPRINT_DOWNLOAD_DIR` | Neuprint download root | configs, `download_neuprint.py` |
+| `OUTPUT_DATA_DIR` | Writable root for generated data | `data/config.py`, `data/ephys.py`, scripts |
 | `TRAINING_DIR` | Training run output directory | `TrainingConfig` |
 
 ### Verify setup

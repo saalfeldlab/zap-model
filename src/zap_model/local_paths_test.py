@@ -9,9 +9,8 @@ import unittest
 
 try:
     from zap_model.local_paths import (
-        NEUPRINT_DOWNLOAD_DIR,
+        OUTPUT_DATA_DIR,
         TRAINING_DIR,
-        ZAP_CELL_EPHYS_INDEX_PATH,
         ZAPBENCH_LOCAL_PATH,
     )
 
@@ -41,25 +40,13 @@ class TestZapbenchLocalPath(unittest.TestCase):
 
 
 @unittest.skipUnless(_HAS_LOCAL_PATHS, "local_paths.py not found")
-class TestCellEphysIndexPath(unittest.TestCase):
-    """Writability check for ZAP_CELL_EPHYS_INDEX_PATH."""
-
-    def test_parent_writable(self):
-        parent = ZAP_CELL_EPHYS_INDEX_PATH.parent
-        self.assertTrue(
-            os.access(parent, os.W_OK),
-            f"{parent} is not writable. Run: mkdir -p {parent}",
-        )
-
-
-@unittest.skipUnless(_HAS_LOCAL_PATHS, "local_paths.py not found")
-class TestNeuprintDownloadDir(unittest.TestCase):
-    """Writability check for NEUPRINT_DOWNLOAD_DIR."""
+class TestOutputDataDir(unittest.TestCase):
+    """Writability check for OUTPUT_DATA_DIR."""
 
     def test_writable(self):
         self.assertTrue(
-            os.access(NEUPRINT_DOWNLOAD_DIR, os.W_OK),
-            f"{NEUPRINT_DOWNLOAD_DIR} is not writable. Run: mkdir -p {NEUPRINT_DOWNLOAD_DIR}",
+            os.access(OUTPUT_DATA_DIR, os.W_OK),
+            f"{OUTPUT_DATA_DIR} is not writable. Run: mkdir -p {OUTPUT_DATA_DIR}",
         )
 
 

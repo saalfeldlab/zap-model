@@ -17,7 +17,7 @@ from zap_model.data.conditions import (
     VAL_FRACTION,
     Condition,
 )
-from zap_model.local_paths import NEUPRINT_DOWNLOAD_DIR, ZAPBENCH_LOCAL_PATH
+from zap_model.local_paths import OUTPUT_DATA_DIR, ZAPBENCH_LOCAL_PATH
 
 
 class FrameRange(BaseModel, frozen=True, extra="forbid"):
@@ -52,7 +52,7 @@ class ActivityConfig(BaseModel, extra="forbid"):
 class NeuprintConfig(BaseModel, extra="forbid"):
     """Configuration for neuprint EM data."""
 
-    data_dir: Path = NEUPRINT_DOWNLOAD_DIR / "latest"
+    data_dir: Path = OUTPUT_DATA_DIR / "neuprint_data" / "latest"
     min_weight: int = 1
     # from fishfuncem NeuprintServer.tracing_status_filter
     status_filter: tuple[str, ...] = (

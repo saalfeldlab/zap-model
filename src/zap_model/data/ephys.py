@@ -19,10 +19,14 @@ from typing import NewType
 
 import numpy as np
 
+from zap_model.local_paths import OUTPUT_DATA_DIR
+
 AcqIndex = NewType("AcqIndex", int)
 
 SAMPLING_FREQUENCY_HZ = 6000
 NUM_RAW_CHANNELS = 10
+
+ZAP_CELL_EPHYS_INDEX_PATH = OUTPUT_DATA_DIR / "cell_ephys_index.zarr"
 
 
 class EphysChannel(IntEnum):
