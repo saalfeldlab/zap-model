@@ -13,8 +13,7 @@ from zap_model.training.test_util import assert_trainable
 
 _TINY_CFG = EEDModelConfig(
     latent_dim=2,
-    encoder=MLPConfig(hidden_dims=(8,)),
-    decoder=MLPConfig(hidden_dims=(8,)),
+    codec=MLPConfig(hidden_dims=(8,)),
     evolver=MLPConfig(hidden_dims=(8,), activation="Tanh"),
     rollout_steps=3,
 )

@@ -13,8 +13,7 @@ class EEDModelConfig(BaseModel, extra="forbid"):
     """Configuration for the encoder-evolver-decoder model."""
 
     latent_dim: int = 64
-    encoder: MLPConfig = MLPConfig(hidden_dims=(128, 128))
-    decoder: MLPConfig = MLPConfig(hidden_dims=(128, 128))
+    codec: MLPConfig = MLPConfig(hidden_dims=(128, 128))
     evolver: MLPConfig = MLPConfig(hidden_dims=(128, 128), activation="Tanh")
     rollout_steps: int = 10
 

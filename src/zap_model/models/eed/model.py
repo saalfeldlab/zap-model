@@ -29,8 +29,8 @@ class EEDModel(nn.Module):
     def __init__(self, num_neurons: int, cfg: EEDModelConfig) -> None:
         super().__init__()
         self.cfg = cfg
-        self.encoder = MLP(num_neurons, cfg.latent_dim, cfg.encoder)
-        self.decoder = MLP(cfg.latent_dim, num_neurons, cfg.decoder)
+        self.encoder = MLP(num_neurons, cfg.latent_dim, cfg.codec)
+        self.decoder = MLP(cfg.latent_dim, num_neurons, cfg.codec)
         self.evolver = MLP(cfg.latent_dim, cfg.latent_dim, cfg.evolver)
 
         # Zero-init final layer of evolver so initial behaviour is autoencoder
