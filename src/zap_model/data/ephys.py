@@ -19,15 +19,10 @@ from typing import NewType
 
 import numpy as np
 
-Frame = NewType("Frame", int)
 AcqIndex = NewType("AcqIndex", int)
 
 SAMPLING_FREQUENCY_HZ = 6000
 NUM_RAW_CHANNELS = 10
-
-# Imaging geometry
-# number frames = number of nominal time steps = number of acquired z stacks
-NUM_FRAMES = 7879
 
 
 class EphysChannel(IntEnum):

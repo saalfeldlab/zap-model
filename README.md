@@ -26,15 +26,6 @@ pre-commit install
 
 Note: conda env creation may take a while due to pip building some packages from source.
 
-### Verify
-
-```bash
-python scripts/verify_fishfuncem.py
-```
-
-This queries neuprint and prints 5 rows. Requires `NEUPRINT_TOKEN` or
-`NEUPRINT_APPLICATION_CREDENTIALS` in your environment (see fishfuncem docs).
-
 ### Data paths
 
 Copy the example paths file and fill in your local paths:
@@ -50,6 +41,18 @@ cp src/zap_model/local_paths.example.py src/zap_model/local_paths.py
 | `ZAP_CELL_EPHYS_INDEX_PATH` | Path to `cell_ephys_index.zarr` (computed output) | configs, `build_cell_ephys_index.py` |
 | `NEUPRINT_DOWNLOAD_DIR` | Neuprint download root | configs, `download_neuprint.py` |
 | `TRAINING_DIR` | Training run output directory | `TrainingConfig` |
+
+### Verify setup
+
+After configuring `local_paths.py` and setting your neuprint credentials, run:
+
+```bash
+python scripts/verify_setup.py
+```
+
+This checks that `local_paths.py` exists, its paths are valid, and neuprint
+can be queried. Requires `NEUPRINT_TOKEN` or `NEUPRINT_APPLICATION_CREDENTIALS`
+in your environment (see fishfuncem docs).
 
 The `local_paths.py` file is gitignored. These variables provide defaults for
 config fields (`ActivityConfig.traces_path`, `NeuprintConfig.data_dir`) and

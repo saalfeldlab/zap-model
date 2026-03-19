@@ -1,6 +1,20 @@
-"""Condition metadata for zapbench functional data."""
+"""Condition metadata for zapbench functional data.
+
+Note that condition data is specified in "frames" and not time steps.
+
+Glossary
+--------
+Frame : Nominal timestep index (0..T-1) — one row of the traces matrix.
+        All cells share the same Frame index, but were not acquired simultaneously.
+AcqIndex : Index into the 6 kHz ephys acquisition stream. Represents the actual
+           wall-clock time at which a specific cell was imaged. Different cells in
+           the same Frame have different AcqIndex values because the microscope
+           scans z-planes sequentially.
+
+"""
 
 from enum import IntEnum
+from typing import NewType
 
 
 class Condition(IntEnum):
@@ -17,22 +31,31 @@ class Condition(IntEnum):
     DARK = 8
 
 
-# (start, end) offsets along the T dimension, indexed by Condition
+# Imaging geometry
+# Adding a new type will let the IDE know that these integers correspond
+# to frame indices and NOT bin indices.
+Frame = NewType("Frame", int)
+
+# number frames = number of nominal time steps = number of acquired z stacks
+NUM_FRAMES = Frame(7879)
+
+
+# (start, end) offsets along the Frame dimension, indexed by Condition
 # e.g., OFFSETS[Condition.GAIN]  # (0, 649)
 OFFSETS = (
-    (0, 649),  # GAIN
-    (649, 2422),  # DOTS
-    (2422, 3078),  # FLASH
-    (3078, 3735),  # TAXIS
-    (3735, 5047),  # TURNING
-    (5047, 5638),  # POSITION
-    (5638, 6623),  # OPEN_LOOP
-    (6623, 7279),  # ROTATION
-    (7279, 7879),  # DARK
+    (Frame(0), Frame(649)),  # GAIN
+    (Frame(649), Frame(2422)),  # DOTS
+    (Frame(2422), Frame(3078)),  # FLASH
+    (Frame(3078), Frame(3735)),  # TAXIS
+    (Frame(3735), Frame(5047)),  # TURNING
+    (Frame(5047), Frame(5638)),  # POSITION
+    (Frame(5638), Frame(6623)),  # OPEN_LOOP
+    (Frame(6623), Frame(7279)),  # ROTATION
+    (Frame(7279), Frame(7879)),  # DARK
 )
 
 # frames excluded at the beginning and end of each condition
-PADDING = 1
+PADDING = Frame(1)
 
 TRAIN_CONDITIONS = (
     Condition.GAIN,
