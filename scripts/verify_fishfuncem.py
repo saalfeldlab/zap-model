@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """Verify that fishfuncem + neuprint connectivity works."""
 
 from fishfuncem.em.NeuprintServer import NeuprintServer

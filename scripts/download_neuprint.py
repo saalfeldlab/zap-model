@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """Download neuron soma info and connectome from neuprint.
 
 Writes parquet files to a timestamped directory and updates a `latest` symlink

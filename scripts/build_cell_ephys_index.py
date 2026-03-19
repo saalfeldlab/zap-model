@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """Build cell_ephys_index zarr from raw ephys, segmentation, and flow fields.
 
 For each cell and timepoint, computes the ephys sample index by:

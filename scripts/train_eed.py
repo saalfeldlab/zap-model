@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """CLI entrypoint for EED model training.
 
 Usage::
