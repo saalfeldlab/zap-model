@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import json
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import tensorstore as ts
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     import numpy as np
 
 # Map numpy dtype names to zarr3 data_type strings.
@@ -22,21 +21,28 @@ _DTYPE_MAP = {
 }
 
 
-def write_array(path: Path, arr: np.ndarray) -> None:
+def write_array(
+    path: Path,
+    arr: np.ndarray,
+    chunk_shape: list[int] | None = None,
+) -> None:
     """Write a numpy array as a zarr3 array."""
     dtype_str = _DTYPE_MAP.get(arr.dtype.name)
     if dtype_str is None:
         msg = f"Unsupported dtype {arr.dtype} — add it to _DTYPE_MAP"
         raise ValueError(msg)
 
+    if chunk_shape is None:
+        chunk_shape = list(arr.shape)
+
     spec = {
         "driver": "zarr3",
-        "kvstore": {"driver": "file", "path": str(path)},
+        "kvstore": {"driver": "file", "path": str(Path(path).resolve())},
         "metadata": {
             "shape": list(arr.shape),
             "chunk_grid": {
                 "name": "regular",
-                "configuration": {"chunk_shape": list(arr.shape)},
+                "configuration": {"chunk_shape": chunk_shape},
             },
             "chunk_key_encoding": {"name": "default"},
             "data_type": dtype_str,
@@ -56,7 +62,7 @@ def read_array(path: Path) -> np.ndarray:
     """Read a zarr3 array into a numpy array."""
     spec = {
         "driver": "zarr3",
-        "kvstore": {"driver": "file", "path": str(path)},
+        "kvstore": {"driver": "file", "path": str(Path(path).resolve())},
     }
     store = ts.open(spec, read=True).result()
     return store.read().result()

@@ -188,7 +188,7 @@ def main():
 
     # 5. Write to zarr
     print(f"Writing {output_path} [{num_timepoints}, {num_cells}] ...", flush=True)
-    write_array(output_path, cell_ephys_index)
+    write_array(output_path, cell_ephys_index, chunk_shape=[num_timepoints, 512])
     print(f"  sample index range: [{cell_ephys_index.min()}, {cell_ephys_index.max()}]", flush=True)
 
 
