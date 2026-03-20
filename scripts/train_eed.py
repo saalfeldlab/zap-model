@@ -42,10 +42,10 @@ def main() -> None:
     run_dir = create_run_dir(expt_name)
     print(f"run dir: {run_dir}", flush=True)
 
-    activity = load_activity(cfg.data.activity)
+    traces = load_activity(cfg.data.activity)
     device = get_device()
     data = make_eed_data(
-        activity,
+        traces,
         cfg.data.splits,
         cfg.model,
         cfg.training.batch_size,
@@ -62,7 +62,8 @@ def main() -> None:
 
     (run_dir / "command_line.txt").write_text("\n".join(sys.argv))
 
-    model = EEDModel(num_neurons=activity.num_neurons, cfg=cfg.model)
+    num_neurons = traces.shape[1]
+    model = EEDModel(num_neurons=num_neurons, cfg=cfg.model)
     train(model, data.train_iter, data.val_iter, cfg.training, run_dir)
 
 

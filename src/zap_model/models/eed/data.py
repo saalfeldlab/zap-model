@@ -11,7 +11,6 @@ from torch import Tensor
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from zap_model.data.activity import ActivityData
     from zap_model.data.config import ConditionSplitConfig
     from zap_model.models.eed.config import EEDModelConfig
 
@@ -59,7 +58,7 @@ def _infinite_shuffled_batches(
 
 
 def make_eed_data(
-    activity: ActivityData,
+    traces: Tensor,
     splits: ConditionSplitConfig,
     model_cfg: EEDModelConfig,
     batch_size: int,
@@ -84,7 +83,7 @@ def make_eed_data(
         msg = "No training windows could be extracted — check splits and rollout_steps"
         raise ValueError(msg)
 
-    traces = activity.traces.to(device)
+    traces = traces.to(device)
     starts = torch.tensor(start_list, dtype=torch.long, device=device)
 
     train_iter = _infinite_shuffled_batches(traces, starts, window_size, batch_size)

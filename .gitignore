@@ -27,6 +27,9 @@ Thumbs.db
 # Jupyter
 .ipynb_checkpoints/
 
+# Ignore notebooks, move code to modules if useful
+/notebooks/
+
 # Ruff
 .ruff_cache/
 
