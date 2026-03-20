@@ -78,6 +78,9 @@ def train(
     Seeding is the caller's responsibility — call
     :func:`~zap_model.training.util.seed_everything` before building datasets.
     """
+    # use tf32 matmul
+    torch.set_float32_matmul_precision("high")
+
     device = get_device()
     model = model.to(device)
 
