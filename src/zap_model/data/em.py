@@ -188,15 +188,15 @@ def resolve_neurons(
     """
     soma_df = pl.read_parquet(neuprint_cfg.data_dir / "soma.parquet")
 
-    if restrict_zb_ids:
-        soma_df = soma_df.filter(pl.col(SomaCol.ZB_ID).is_not_null())
-
     if body_ids_path is not None:
         ids_df = pl.read_parquet(body_ids_path)
         valid_ids = soma_df.select(SomaCol.ID, SomaCol.ZB_ID)
         soma_df = ids_df.select(SomaCol.ID).join(valid_ids, on=SomaCol.ID, how="left")
     else:
         soma_df = soma_df.filter(pl.col(SomaCol.STATUS).is_in(neuprint_cfg.status_filter))
+
+    if restrict_zb_ids:
+        soma_df = soma_df.filter(pl.col(SomaCol.ZB_ID).is_not_null())
 
     return soma_df.select(SomaCol.ID, SomaCol.ZB_ID)
 
