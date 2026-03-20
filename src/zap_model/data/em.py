@@ -19,7 +19,10 @@ if TYPE_CHECKING:
 
 
 class SomaCol(StrEnum):
-    """Column names for the neuron soma dataframe."""
+    """Column names for the neuron soma dataframe.
+
+    This is an alias for the neuprint column names that are too verbose.
+    """
 
     ID = "id"  # n.bodyId
     TYPE = "type"  # n.type
@@ -169,15 +172,17 @@ class Connectivity:
 
 def build_connectivity(
     neuprint_cfg: NeuprintConfig,
-    neuron_ids_path: Path | None = None,
+    body_ids_path: Path | None = None,
+    restrict_zb_ids: bool = False,
 ) -> Connectivity:
     """Build a sparse connectivity matrix from downloaded neuprint parquet files.
 
     Args:
         neuprint_cfg: Neuprint configuration specifying ``data_dir``, ``min_weight``,
             and ``status_filter``.
-        neuron_ids_path: Optional parquet file with an ``id`` column listing body IDs
+        body_ids_path: Optional parquet file with an ``id`` column listing body IDs
             to include. When None, all neurons passing the status filter are used.
+        restrict_zb_ids: When True, further filter to neurons with a valid zapbench ID.
 
     Returns:
         A :class:`Connectivity` with the sparse weight matrix and body ID array.
@@ -189,15 +194,18 @@ def build_connectivity(
     # Filter soma by tracing status
     soma_df = soma_df.filter(pl.col(SomaCol.STATUS).is_in(neuprint_cfg.status_filter))
 
-    # Subset to requested neuron IDs
-    if neuron_ids_path is not None:
-        ids_df = pl.read_parquet(neuron_ids_path)
-        soma_df = soma_df.join(ids_df.select(SomaCol.ID), on=SomaCol.ID, how="inner")
+    if restrict_zb_ids:
+        soma_df = soma_df.filter(pl.col(SomaCol.ZB_ID).is_not_null())
 
-    # Sort body IDs for deterministic matrix ordering
-    body_ids = soma_df[SomaCol.ID].sort().to_numpy()
+    # Subset to requested body IDs, preserving input file order
+    if body_ids_path is not None:
+        ids_df = pl.read_parquet(body_ids_path)
+        valid_ids = soma_df.select(SomaCol.ID)
+        soma_df = ids_df.select(SomaCol.ID).join(valid_ids, on=SomaCol.ID, how="semi")
+
+    body_ids = soma_df[SomaCol.ID].to_numpy()
     n = len(body_ids)
-    id_to_idx = {int(bid): idx for idx, bid in enumerate(body_ids)}
+    id_to_idx = {bid: idx for idx, bid in enumerate(body_ids)}
 
     # Filter connections: both endpoints in neuron set, min weight
     id_set = set(id_to_idx)
@@ -212,8 +220,8 @@ def build_connectivity(
     post_ids = conn_df[ConnCol.ID_POST].to_numpy()
     weights = conn_df[ConnCol.WEIGHT].to_numpy()
 
-    pre_idx = np.array([id_to_idx[int(x)] for x in pre_ids], dtype=np.int32)
-    post_idx = np.array([id_to_idx[int(x)] for x in post_ids], dtype=np.int32)
+    pre_idx = np.array([id_to_idx[x] for x in pre_ids], dtype=np.int32)
+    post_idx = np.array([id_to_idx[x] for x in post_ids], dtype=np.int32)
 
     W = scipy.sparse.csc_matrix(
         (weights.astype(np.float32), (pre_idx, post_idx)),

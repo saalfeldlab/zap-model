@@ -3,7 +3,6 @@
 import unittest
 from pathlib import Path
 
-from zap_model.data.activity import MIN_MAX_VALUES
 from zap_model.data.conditions import (
     HOLDOUT_CONDITIONS,
     OFFSETS,
@@ -17,7 +16,6 @@ from zap_model.data.config import (
     ActivityConfig,
     ConditionSplitConfig,
     DataConfig,
-    IdMapping,
 )
 
 
@@ -27,15 +25,13 @@ class TestDataConfig(unittest.TestCase):
         cfg = DataConfig(activity=ActivityConfig(traces_path="/data/traces.zarr"))
 
         self.assertEqual(cfg.activity.traces_path, Path("/data/traces.zarr"))
-        self.assertEqual(cfg.activity.min_value, MIN_MAX_VALUES[0])
-        self.assertEqual(cfg.activity.max_value, MIN_MAX_VALUES[1])
         self.assertEqual(cfg.splits.train_conditions, TRAIN_CONDITIONS)
         self.assertEqual(cfg.splits.holdout_conditions, HOLDOUT_CONDITIONS)
         self.assertEqual(cfg.splits.val_fraction, VAL_FRACTION)
         self.assertEqual(cfg.splits.test_fraction, TEST_FRACTION)
         self.assertEqual(cfg.splits.padding, PADDING)
         self.assertIsNone(cfg.neuprint)
-        self.assertIsNone(cfg.id_mapping.path)
+        self.assertIsNone(cfg.body_ids_path)
 
         # verify split contiguity and coverage for every condition
         ranges = cfg.splits.get_ranges()
@@ -65,14 +61,14 @@ class TestDataConfig(unittest.TestCase):
             self.assertEqual(len(r.test), 0)
 
     def test_subset_of_neurons(self):
-        """Restrict to a subset of neurons via id mapping file."""
+        """Restrict to a subset of neurons via body IDs file."""
         cfg = DataConfig(
             activity=ActivityConfig(traces_path="/data/traces.zarr"),
-            id_mapping=IdMapping(path="/data/region_of_interest_ids.parquet"),
+            body_ids_path="/data/region_body_ids.parquet",
         )
         self.assertEqual(
-            cfg.id_mapping.path,
-            Path("/data/region_of_interest_ids.parquet"),
+            cfg.body_ids_path,
+            Path("/data/region_body_ids.parquet"),
         )
 
 

@@ -13,9 +13,6 @@ if TYPE_CHECKING:
 
     from zap_model.data.config import ActivityConfig
 
-# Minimum and maximum values for dF/F in zapbench.
-MIN_MAX_VALUES = (-0.25, 1.5)
-
 
 def load_activity(cfg: ActivityConfig) -> Tensor:
     """Load activity traces from a zarr v3 array on disk.

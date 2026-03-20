@@ -7,7 +7,6 @@ from pathlib import Path  # noqa: TC003 — pydantic needs this at runtime
 
 from pydantic import BaseModel, model_validator
 
-from zap_model.data.activity import MIN_MAX_VALUES
 from zap_model.data.conditions import (
     HOLDOUT_CONDITIONS,
     OFFSETS,
@@ -45,8 +44,8 @@ class ActivityConfig(BaseModel, extra="forbid"):
     """
 
     traces_path: Path = ZAPBENCH_LOCAL_PATH / "traces"
-    min_value: float = MIN_MAX_VALUES[0]
-    max_value: float = MIN_MAX_VALUES[1]
+    min_value: float = -0.25  # hard-coded from zapbench defaults
+    max_value: float = 1.5  # ditto
 
 
 class NeuprintConfig(BaseModel, extra="forbid"):
@@ -127,31 +126,19 @@ class ConditionSplitConfig(BaseModel, extra="forbid"):
         return result
 
 
-class IdMapping(BaseModel, extra="forbid"):
-    """Mapping between EM body IDs and functional cell indices.
-
-    Default uses neuprint's zapbenchId field (SomaCol.ZB_ID).
-    Set path to override with a custom mapping file.
-    """
-
-    path: Path | None = None
-
-
 class DataConfig(BaseModel, extra="forbid"):
     """Top-level data configuration.
 
+    Body IDs are mapped to trace matrix columns via ``SomaCol.ZB_ID``.
+
     Examples::
 
-        # minimal — just activity + default splits/id_mapping
-        # this would be running a zapbench-style benchmarking model
-        # all traces that have an EM soma would be used
+        # minimal — all neurons with an EM soma
         DataConfig(
             activity=ActivityConfig(traces_path=Path("/data/traces.zarr")),
         )
 
-        # everything specified
-        # id_mapping can be used to specify a subset of zapbench IDs
-        # from a region of interest
+        # subset to specific body IDs + custom splits
         DataConfig(
             activity=ActivityConfig(
                 traces_path=Path("/data/traces.zarr"),
@@ -163,11 +150,11 @@ class DataConfig(BaseModel, extra="forbid"):
                 val_fraction=0.15,
             ),
             neuprint=NeuprintConfig(data_dir=Path("/data/neuprint_data/latest")),
-            id_mapping=IdMapping(path=Path("/data/custom_mapping.parquet")),
+            body_ids_path=Path("/data/region_body_ids.parquet"),
         )
     """
 
     activity: ActivityConfig
     splits: ConditionSplitConfig = ConditionSplitConfig()
     neuprint: NeuprintConfig | None = None
-    id_mapping: IdMapping = IdMapping()
+    body_ids_path: Path | None = None
