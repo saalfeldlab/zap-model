@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import tensorstore as ts
 import torch
 from torch import Tensor
+
+from zap_model.data.zarr import read_array
 
 if TYPE_CHECKING:
     import numpy as np
@@ -26,15 +27,7 @@ def load_activity(cfg: ActivityConfig, trace_ids: np.ndarray | None = None) -> T
         trace_ids: Optional array of column indices (ZB_IDs) to select a
             subset of neurons. When None, all columns are returned.
     """
-    spec = {
-        "driver": "zarr3",
-        "kvstore": {
-            "driver": "file",
-            "path": str(cfg.traces_path),
-        },
-    }
-    store = ts.open(spec, read=True).result()
-    arr: np.ndarray = store.read().result()
+    arr = read_array(cfg.traces_path)
     traces = torch.tensor(arr, dtype=torch.float32)
     traces = traces.clamp(min=cfg.min_value, max=cfg.max_value)
     if trace_ids is not None:

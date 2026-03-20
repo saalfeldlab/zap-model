@@ -14,9 +14,6 @@ Paths are configured in src/zap_model/local_paths.py (see local_paths.example.py
     ZAPBENCH_LOCAL_PATH, ZAPBENCH_GCS_URI
 """
 
-import json
-import time
-
 import numpy as np
 import tensorstore as ts
 from scipy.ndimage import map_coordinates
@@ -24,20 +21,21 @@ from scipy.signal import find_peaks
 from scipy.spatial import KDTree
 from tqdm import tqdm
 
-from zap_model.data.ephys import NUM_FRAMES, ZAP_CELL_EPHYS_INDEX_PATH, EphysChannel, load_raw
+from zap_model.data.conditions import NUM_FRAMES
+from zap_model.data.ephys import ZAP_CELL_EPHYS_INDEX_PATH, EphysChannel, load_raw
+from zap_model.data.zarr import (
+    gcs_chunk_shape,
+    open_gcs_zarr,
+    read_array,
+    read_with_retry,
+    write_array,
+)
 from zap_model.local_paths import ZAPBENCH_GCS_URI, ZAPBENCH_LOCAL_PATH
 
 # Flow field grid strides (aligned-space pixels per grid point)
 STRIDE_X = 16
 STRIDE_Y = 16
 STRIDE_Z = 2
-
-# Zarr chunk size
-CHUNK_SIZE = 512
-
-# GCS retry parameters
-MAX_RETRIES = 5
-TIMEOUT_S = 30
 
 
 # TTL peak detection thresholds
@@ -94,26 +92,13 @@ def _compute_imaging_sample_index(ttl: np.ndarray, num_z_slices: int) -> np.ndar
     return result
 
 
-def _read_with_retry(store, label=""):
-    """Read from tensorstore with retry for GCS timeouts."""
-    for attempt in range(MAX_RETRIES):
-        try:
-            return store.read().result(timeout=TIMEOUT_S)
-        except TimeoutError:
-            print(f"  {label} timeout (attempt {attempt + 1}/{MAX_RETRIES})", flush=True)
-            time.sleep(2**attempt)
-    msg = f"{label} failed after {MAX_RETRIES} attempts"
-    raise TimeoutError(msg)
-
-
 def _load_segmentation(data_root: str) -> np.ndarray:
     """Load segmentation volume from local filesystem."""
     seg_path = f"{data_root}/segmentation"
     print(f"Loading segmentation from {seg_path} ...", flush=True)
-    ds = ts.open({"open": True, "driver": "zarr3", "kvstore": seg_path}).result()
-    seg = ds.read().result()
+    seg = read_array(seg_path)
     print(f"  shape: {seg.shape}, dtype: {seg.dtype}", flush=True)
-    return np.asarray(seg)
+    return seg
 
 
 def _compute_cell_centroids(segmentation: np.ndarray) -> tuple[np.ndarray, int]:
@@ -136,13 +121,10 @@ def _compute_cell_centroids(segmentation: np.ndarray) -> tuple[np.ndarray, int]:
 
 def _open_flow_fields(gcs_uri: str) -> tuple[ts.TensorStore, int]:
     """Open flow fields from GCS and return (store, time_chunk_size)."""
-    print(f"Opening flow fields from {gcs_uri}/flow_fields ...", flush=True)
-    ds = ts.open({"open": True, "driver": "zarr3", "kvstore": f"{gcs_uri}/flow_fields"}).result()
-
-    kvstore = ts.KvStore.open(f"{gcs_uri}/flow_fields/").result()
-    meta = json.loads(kvstore.read("zarr.json").result().value)
-    time_chunk = meta["chunk_grid"]["configuration"]["chunk_shape"][-1]
-
+    uri = f"{gcs_uri}/flow_fields"
+    print(f"Opening flow fields from {uri} ...", flush=True)
+    ds = open_gcs_zarr(uri)
+    time_chunk = gcs_chunk_shape(uri)[-1]
     print(f"  shape: {ds.shape}, time chunk: {time_chunk}", flush=True)
     return ds, time_chunk
 
@@ -191,7 +173,7 @@ def main():
         t_start = ci * time_chunk
         t_end = min(t_start + time_chunk, num_timepoints)
 
-        flow_chunk = _read_with_retry(ds_flow[:, :, :, :, t_start:t_end], f"flow chunk {ci}")
+        flow_chunk = read_with_retry(ds_flow[:, :, :, :, t_start:t_end], label=f"flow chunk {ci}")
 
         for i, t in enumerate(range(t_start, t_end)):
             z_offset = map_coordinates(
@@ -206,27 +188,7 @@ def main():
 
     # 5. Write to zarr
     print(f"Writing {output_path} [{num_timepoints}, {num_cells}] ...", flush=True)
-    spec = {
-        "driver": "zarr3",
-        "kvstore": {"driver": "file", "path": output_path},
-        "metadata": {
-            "shape": [num_timepoints, num_cells],
-            "chunk_grid": {
-                "name": "regular",
-                "configuration": {"chunk_shape": [CHUNK_SIZE, CHUNK_SIZE]},
-            },
-            "chunk_key_encoding": {"name": "default"},
-            "data_type": "int32",
-            "codecs": [
-                {"name": "bytes", "configuration": {"endian": "little"}},
-                {"name": "blosc", "configuration": {"cname": "zstd", "clevel": 5}},
-            ],
-        },
-        "create": True,
-        "delete_existing": True,
-    }
-    store = ts.open(spec).result()
-    store.write(cell_ephys_index).result()
+    write_array(output_path, cell_ephys_index)
     print(f"  sample index range: [{cell_ephys_index.min()}, {cell_ephys_index.max()}]", flush=True)
 
 

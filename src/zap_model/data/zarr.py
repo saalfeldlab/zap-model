@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import time
 from typing import TYPE_CHECKING
 
 import tensorstore as ts
@@ -58,3 +60,33 @@ def read_array(path: Path) -> np.ndarray:
     }
     store = ts.open(spec, read=True).result()
     return store.read().result()
+
+
+def open_gcs_zarr(gcs_uri: str) -> ts.TensorStore:
+    """Open a zarr3 array on GCS for reading."""
+    return ts.open({"open": True, "driver": "zarr3", "kvstore": gcs_uri}).result()
+
+
+def gcs_chunk_shape(gcs_uri: str) -> list[int]:
+    """Read the chunk shape from a zarr3 array's metadata on GCS."""
+    kvstore = ts.KvStore.open(f"{gcs_uri}/").result()
+    meta = json.loads(kvstore.read("zarr.json").result().value)
+    return meta["chunk_grid"]["configuration"]["chunk_shape"]
+
+
+def read_with_retry(
+    store: ts.TensorStore,
+    *,
+    max_retries: int = 5,
+    timeout_s: int = 30,
+    label: str = "",
+) -> np.ndarray:
+    """Read from a tensorstore with exponential backoff on timeout."""
+    for attempt in range(max_retries):
+        try:
+            return store.read().result(timeout=timeout_s)
+        except TimeoutError:
+            print(f"  {label} timeout (attempt {attempt + 1}/{max_retries})", flush=True)
+            time.sleep(2**attempt)
+    msg = f"{label} failed after {max_retries} attempts"
+    raise TimeoutError(msg)

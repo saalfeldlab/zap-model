@@ -39,7 +39,7 @@ class TrainingConfig(BaseModel, extra="forbid"):
     """Configuration for the training loop."""
 
     epochs: int = 100
-    batch_size: int
+    batch_size: int = 32
     batches_per_epoch: int = 100
     lr: float = 1e-4
     weight_decay: float = 0.0
