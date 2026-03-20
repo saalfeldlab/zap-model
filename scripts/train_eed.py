@@ -8,6 +8,7 @@ Usage::
 
 from __future__ import annotations
 
+import logging
 import re
 import sys
 
@@ -24,6 +25,8 @@ from zap_model.training.util import get_device, seed_everything
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+
     if len(sys.argv) < 2 or sys.argv[1].startswith("-"):
         print(
             "usage: python scripts/train_eed.py <expt_name> [overrides...]\n"
