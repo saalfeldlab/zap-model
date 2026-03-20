@@ -170,40 +170,52 @@ class Connectivity:
         return cls(W=W, body_ids=neuron_ids)
 
 
-def build_connectivity(
+def resolve_neurons(
     neuprint_cfg: NeuprintConfig,
     body_ids_path: Path | None = None,
     restrict_zb_ids: bool = False,
-) -> Connectivity:
-    """Build a sparse connectivity matrix from downloaded neuprint parquet files.
+) -> pl.DataFrame:
+    """Resolve the set of neurons to use, returning a DataFrame with ID and ZB_ID columns.
 
     Args:
-        neuprint_cfg: Neuprint configuration specifying ``data_dir``, ``min_weight``,
-            and ``status_filter``.
+        neuprint_cfg: Neuprint configuration specifying ``data_dir`` and ``status_filter``.
         body_ids_path: Optional parquet file with an ``id`` column listing body IDs
             to include. When None, all neurons passing the status filter are used.
         restrict_zb_ids: When True, further filter to neurons with a valid zapbench ID.
 
     Returns:
-        A :class:`Connectivity` with the sparse weight matrix and body ID array.
+        A DataFrame with at least ``SomaCol.ID`` and ``SomaCol.ZB_ID`` columns.
     """
-    data_dir = neuprint_cfg.data_dir
-    soma_df = pl.read_parquet(data_dir / "soma.parquet")
-    conn_df = pl.read_parquet(data_dir / "connections.parquet")
-
-    # Filter soma by tracing status
-    soma_df = soma_df.filter(pl.col(SomaCol.STATUS).is_in(neuprint_cfg.status_filter))
+    soma_df = pl.read_parquet(neuprint_cfg.data_dir / "soma.parquet")
 
     if restrict_zb_ids:
         soma_df = soma_df.filter(pl.col(SomaCol.ZB_ID).is_not_null())
 
-    # Subset to requested body IDs, preserving input file order
     if body_ids_path is not None:
         ids_df = pl.read_parquet(body_ids_path)
-        valid_ids = soma_df.select(SomaCol.ID)
-        soma_df = ids_df.select(SomaCol.ID).join(valid_ids, on=SomaCol.ID, how="semi")
+        valid_ids = soma_df.select(SomaCol.ID, SomaCol.ZB_ID)
+        soma_df = ids_df.select(SomaCol.ID).join(valid_ids, on=SomaCol.ID, how="left")
+    else:
+        soma_df = soma_df.filter(pl.col(SomaCol.STATUS).is_in(neuprint_cfg.status_filter))
 
-    body_ids = soma_df[SomaCol.ID].to_numpy()
+    return soma_df.select(SomaCol.ID, SomaCol.ZB_ID)
+
+
+def build_connectivity(
+    neuprint_cfg: NeuprintConfig,
+    body_ids: np.ndarray,
+) -> Connectivity:
+    """Build a sparse connectivity matrix from downloaded neuprint parquet files.
+
+    Args:
+        neuprint_cfg: Neuprint configuration specifying ``data_dir`` and ``min_weight``.
+        body_ids: Array of body IDs defining the neuron set and matrix ordering.
+
+    Returns:
+        A :class:`Connectivity` with the sparse weight matrix and body ID array.
+    """
+    conn_df = pl.read_parquet(neuprint_cfg.data_dir / "connections.parquet")
+
     n = len(body_ids)
     id_to_idx = {bid: idx for idx, bid in enumerate(body_ids)}
 

@@ -14,12 +14,17 @@ if TYPE_CHECKING:
     from zap_model.data.config import ActivityConfig
 
 
-def load_activity(cfg: ActivityConfig) -> Tensor:
+def load_activity(cfg: ActivityConfig, trace_ids: np.ndarray | None = None) -> Tensor:
     """Load activity traces from a zarr v3 array on disk.
 
     Opens ``cfg.traces_path`` via tensorstore (zarr3 driver), reads the full
     array into a CPU float32 tensor of shape ``(T, N)`` and clips values to
     ``[cfg.min_value, cfg.max_value]``.
+
+    Args:
+        cfg: Activity configuration with path and clamp values.
+        trace_ids: Optional array of column indices (ZB_IDs) to select a
+            subset of neurons. When None, all columns are returned.
     """
     spec = {
         "driver": "zarr3",
@@ -31,4 +36,7 @@ def load_activity(cfg: ActivityConfig) -> Tensor:
     store = ts.open(spec, read=True).result()
     arr: np.ndarray = store.read().result()
     traces = torch.tensor(arr, dtype=torch.float32)
-    return traces.clamp(min=cfg.min_value, max=cfg.max_value)
+    traces = traces.clamp(min=cfg.min_value, max=cfg.max_value)
+    if trace_ids is not None:
+        traces = traces[:, trace_ids]
+    return traces

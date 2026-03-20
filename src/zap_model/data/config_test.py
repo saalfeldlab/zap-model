@@ -1,7 +1,10 @@
 """Config use-case tests."""
 
+import tempfile
 import unittest
 from pathlib import Path
+
+import polars as pl
 
 from zap_model.data.conditions import (
     HOLDOUT_CONDITIONS,
@@ -30,7 +33,7 @@ class TestDataConfig(unittest.TestCase):
         self.assertEqual(cfg.splits.val_fraction, VAL_FRACTION)
         self.assertEqual(cfg.splits.test_fraction, TEST_FRACTION)
         self.assertEqual(cfg.splits.padding, PADDING)
-        self.assertIsNone(cfg.neuprint)
+        self.assertIsNotNone(cfg.neuprint)
         self.assertIsNone(cfg.body_ids_path)
 
         # verify split contiguity and coverage for every condition
@@ -62,14 +65,33 @@ class TestDataConfig(unittest.TestCase):
 
     def test_subset_of_neurons(self):
         """Restrict to a subset of neurons via body IDs file."""
-        cfg = DataConfig(
-            activity=ActivityConfig(traces_path="/data/traces.zarr"),
-            body_ids_path="/data/region_body_ids.parquet",
-        )
-        self.assertEqual(
-            cfg.body_ids_path,
-            Path("/data/region_body_ids.parquet"),
-        )
+        with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
+            pl.DataFrame({"id": [1, 2, 3]}).write_parquet(f.name)
+            cfg = DataConfig(
+                activity=ActivityConfig(traces_path="/data/traces.zarr"),
+                body_ids_path=f.name,
+            )
+            self.assertEqual(cfg.body_ids_path, Path(f.name))
+
+    def test_body_ids_missing_column(self):
+        """Reject body IDs parquet without an 'id' column."""
+        with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
+            pl.DataFrame({"wrong": [1, 2]}).write_parquet(f.name)
+            with self.assertRaises(ValueError, msg="must have an 'id' column"):
+                DataConfig(
+                    activity=ActivityConfig(traces_path="/data/traces.zarr"),
+                    body_ids_path=f.name,
+                )
+
+    def test_body_ids_wrong_dtype(self):
+        """Reject body IDs parquet with non-integer 'id' column."""
+        with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
+            pl.DataFrame({"id": ["a", "b"]}).write_parquet(f.name)
+            with self.assertRaises(ValueError, msg="must be integer"):
+                DataConfig(
+                    activity=ActivityConfig(traces_path="/data/traces.zarr"),
+                    body_ids_path=f.name,
+                )
 
 
 if __name__ == "__main__":

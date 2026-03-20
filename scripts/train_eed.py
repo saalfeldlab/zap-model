@@ -14,6 +14,7 @@ import sys
 import tyro
 
 from zap_model.data.activity import load_activity
+from zap_model.data.em import SomaCol, resolve_neurons
 from zap_model.models.eed.config import EEDConfig
 from zap_model.models.eed.data import make_eed_data
 from zap_model.models.eed.model import EEDModel
@@ -42,7 +43,15 @@ def main() -> None:
     run_dir = create_run_dir(expt_name)
     print(f"run dir: {run_dir}", flush=True)
 
-    traces = load_activity(cfg.data.activity)
+    neuron_mapping = resolve_neurons(
+        cfg.data.neuprint,
+        cfg.data.body_ids_path,
+        restrict_zb_ids=True,
+    )
+    traces = load_activity(
+        cfg.data.activity,
+        trace_ids=neuron_mapping[SomaCol.ZB_ID].to_numpy(),
+    )
     device = get_device()
     data = make_eed_data(
         traces,

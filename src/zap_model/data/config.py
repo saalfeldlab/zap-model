@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from pathlib import Path  # noqa: TC003 — pydantic needs this at runtime
 
+import polars as pl
 from pydantic import BaseModel, model_validator
 
 from zap_model.data.conditions import (
@@ -154,7 +155,21 @@ class DataConfig(BaseModel, extra="forbid"):
         )
     """
 
-    activity: ActivityConfig
+    activity: ActivityConfig = ActivityConfig()
     splits: ConditionSplitConfig = ConditionSplitConfig()
-    neuprint: NeuprintConfig | None = None
+    neuprint: NeuprintConfig = NeuprintConfig()
     body_ids_path: Path | None = None
+
+    @model_validator(mode="after")
+    def _check_body_ids_parquet(self) -> DataConfig:
+        if self.body_ids_path is None:
+            return self
+        schema = pl.read_parquet_schema(self.body_ids_path)
+        col = "id"
+        if col not in schema:
+            msg = f"body_ids parquet must have an '{col}' column, got: {list(schema)}"
+            raise ValueError(msg)
+        if not schema[col].is_integer():
+            msg = f"'{col}' column must be integer, got: {schema[col]}"
+            raise ValueError(msg)
+        return self
