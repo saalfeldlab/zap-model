@@ -8,10 +8,14 @@ Usage::
 
 from __future__ import annotations
 
+# Torch 2.10's NVIDIA libs (e.g. libcublas) use RUNPATH which only searches their own dirs,
+# falling back to the system libstdc++ (missing CXXABI_1.3.15). Importing tensorstore first
+# loads the conda libstdc++ via its RPATH ($ORIGIN/../../..), and it stays cached process-wide.
 import logging
 import re
 import sys
 
+import tensorstore  # noqa: F401 -- must be imported before torch to load conda's libstdc++ first.
 import tyro
 
 from zap_model.data.activity import load_activity
