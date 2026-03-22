@@ -28,7 +28,7 @@ def load_activity(cfg: ActivityConfig, trace_ids: np.ndarray | None = None) -> T
             subset of neurons. When None, all columns are returned.
     """
     arr = read_array(cfg.traces_path)
-    traces = torch.from_numpy(arr, dtype=torch.float32)
+    traces = torch.from_numpy(arr)
     traces = traces.clamp(min=cfg.min_value, max=cfg.max_value)
     if trace_ids is not None:
         traces = traces[:, trace_ids]
