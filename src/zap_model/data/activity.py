@@ -31,5 +31,5 @@ def load_activity(cfg: ActivityConfig, trace_ids: np.ndarray | None = None) -> T
     traces = torch.from_numpy(arr)
     traces = traces.clamp(min=cfg.min_value, max=cfg.max_value)
     if trace_ids is not None:
-        traces = traces[:, trace_ids]
+        return traces[:, trace_ids]
     return traces
