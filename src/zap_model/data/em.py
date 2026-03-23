@@ -172,28 +172,42 @@ class Connectivity:
 
 def resolve_neurons(
     neuprint_cfg: NeuprintConfig,
-    body_ids_path: Path | None = None,
+    neuron_ids_path: Path,
     restrict_zb_ids: bool = False,
 ) -> pl.DataFrame:
     """Resolve the set of neurons to use, returning a DataFrame with ID and ZB_ID columns.
 
+    The ``neuron_ids_path`` parquet may contain:
+
+    - ``zb_id`` only: zapbench IDs used directly (no neuprint data needed). ``ID`` is null.
+    - ``id`` only: body IDs resolved against neuprint soma data for zapbench IDs.
+    - Both ``id`` and ``zb_id``: custom mapping used as-is.
+
     Args:
         neuprint_cfg: Neuprint configuration specifying ``data_dir`` and ``status_filter``.
-        body_ids_path: Optional parquet file with an ``id`` column listing body IDs
-            to include. When None, all neurons passing the status filter are used.
+        neuron_ids_path: Parquet file with ``id`` and/or ``zb_id`` columns.
         restrict_zb_ids: When True, further filter to neurons with a valid zapbench ID.
 
     Returns:
-        A DataFrame with at least ``SomaCol.ID`` and ``SomaCol.ZB_ID`` columns.
+        A DataFrame with ``SomaCol.ID`` and ``SomaCol.ZB_ID`` columns.
     """
-    soma_df = pl.read_parquet(neuprint_cfg.data_dir / "soma.parquet")
+    ids_df = pl.read_parquet(neuron_ids_path)
+    has_id = SomaCol.ID in ids_df.columns
+    has_zb_id = SomaCol.ZB_ID in ids_df.columns
 
-    if body_ids_path is not None:
-        ids_df = pl.read_parquet(body_ids_path)
-        valid_ids = soma_df.select(SomaCol.ID, SomaCol.ZB_ID)
-        soma_df = ids_df.select(SomaCol.ID).join(valid_ids, on=SomaCol.ID, how="left")
+    if has_id and has_zb_id:
+        return ids_df.select(SomaCol.ID, SomaCol.ZB_ID)
+
+    if has_zb_id:
+        soma_df = ids_df.select(SomaCol.ZB_ID).with_columns(
+            pl.lit(None, dtype=pl.Int64).alias(SomaCol.ID),
+        )
     else:
-        soma_df = soma_df.filter(pl.col(SomaCol.STATUS).is_in(neuprint_cfg.status_filter))
+        # has_id only — resolve zb_id from neuprint
+        valid_ids = pl.read_parquet(neuprint_cfg.data_dir / "soma.parquet").select(
+            SomaCol.ID, SomaCol.ZB_ID
+        )
+        soma_df = ids_df.select(SomaCol.ID).join(valid_ids, on=SomaCol.ID, how="left")
 
     if restrict_zb_ids:
         soma_df = soma_df.filter(pl.col(SomaCol.ZB_ID).is_not_null())

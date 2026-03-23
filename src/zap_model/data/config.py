@@ -139,7 +139,7 @@ class DataConfig(BaseModel, extra="forbid"):
             activity=ActivityConfig(traces_path=Path("/data/traces.zarr")),
         )
 
-        # subset to specific body IDs + custom splits
+        # subset to specific neurons + custom splits
         DataConfig(
             activity=ActivityConfig(
                 traces_path=Path("/data/traces.zarr"),
@@ -151,25 +151,29 @@ class DataConfig(BaseModel, extra="forbid"):
                 val_fraction=0.15,
             ),
             neuprint=NeuprintConfig(data_dir=Path("/data/neuprint_data/latest")),
-            body_ids_path=Path("/data/region_body_ids.parquet"),
+            neuron_ids_path=Path("/data/region_neuron_ids.parquet"),
         )
     """
 
     activity: ActivityConfig = ActivityConfig()
     splits: ConditionSplitConfig = ConditionSplitConfig()
     neuprint: NeuprintConfig = NeuprintConfig()
-    body_ids_path: Path | None = None
+    neuron_ids_path: Path | None = None
 
     @model_validator(mode="after")
-    def _check_body_ids_parquet(self) -> DataConfig:
-        if self.body_ids_path is None:
+    def _check_neuron_ids_parquet(self) -> DataConfig:
+        if self.neuron_ids_path is None:
             return self
-        schema = pl.read_parquet_schema(self.body_ids_path)
-        col = "id"
-        if col not in schema:
-            msg = f"body_ids parquet must have an '{col}' column, got: {list(schema)}"
+        schema = pl.read_parquet_schema(self.neuron_ids_path)
+        has_id = "id" in schema
+        has_zb_id = "zb_id" in schema
+        if not has_id and not has_zb_id:
+            msg = f"neuron_ids parquet must have an 'id' and/or 'zb_id' column, got: {list(schema)}"
             raise ValueError(msg)
-        if not schema[col].is_integer():
-            msg = f"'{col}' column must be integer, got: {schema[col]}"
+        if has_id and not schema["id"].is_integer():
+            msg = f"'id' column must be integer, got: {schema['id']}"
+            raise ValueError(msg)
+        if has_zb_id and not schema["zb_id"].is_integer():
+            msg = f"'zb_id' column must be integer, got: {schema['zb_id']}"
             raise ValueError(msg)
         return self

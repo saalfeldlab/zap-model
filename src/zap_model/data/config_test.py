@@ -34,7 +34,7 @@ class TestDataConfig(unittest.TestCase):
         self.assertEqual(cfg.splits.test_fraction, TEST_FRACTION)
         self.assertEqual(cfg.splits.padding, PADDING)
         self.assertIsNotNone(cfg.neuprint)
-        self.assertIsNone(cfg.body_ids_path)
+        self.assertIsNone(cfg.neuron_ids_path)
 
         # verify split contiguity and coverage for every condition
         ranges = cfg.splits.get_ranges()
@@ -63,34 +63,54 @@ class TestDataConfig(unittest.TestCase):
             self.assertEqual(len(r.val), 0)
             self.assertEqual(len(r.test), 0)
 
-    def test_subset_of_neurons(self):
+    def test_subset_by_body_ids(self):
         """Restrict to a subset of neurons via body IDs file."""
         with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
             pl.DataFrame({"id": [1, 2, 3]}).write_parquet(f.name)
             cfg = DataConfig(
                 activity=ActivityConfig(traces_path="/data/traces.zarr"),
-                body_ids_path=f.name,
+                neuron_ids_path=f.name,
             )
-            self.assertEqual(cfg.body_ids_path, Path(f.name))
+            self.assertEqual(cfg.neuron_ids_path, Path(f.name))
 
-    def test_body_ids_missing_column(self):
-        """Reject body IDs parquet without an 'id' column."""
+    def test_subset_by_zb_ids(self):
+        """Restrict to a subset of neurons via zapbench IDs file."""
+        with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
+            pl.DataFrame({"zb_id": [0, 1, 2]}).write_parquet(f.name)
+            cfg = DataConfig(
+                activity=ActivityConfig(traces_path="/data/traces.zarr"),
+                neuron_ids_path=f.name,
+            )
+            self.assertEqual(cfg.neuron_ids_path, Path(f.name))
+
+    def test_subset_by_both_ids(self):
+        """Accept parquet with both id and zb_id (custom mapping)."""
+        with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
+            pl.DataFrame({"id": [100, 200], "zb_id": [0, 5]}).write_parquet(f.name)
+            cfg = DataConfig(
+                activity=ActivityConfig(traces_path="/data/traces.zarr"),
+                neuron_ids_path=f.name,
+            )
+            self.assertEqual(cfg.neuron_ids_path, Path(f.name))
+
+    def test_neuron_ids_missing_column(self):
+        """Reject neuron IDs parquet without 'id' or 'zb_id' column."""
         with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
             pl.DataFrame({"wrong": [1, 2]}).write_parquet(f.name)
-            with self.assertRaises(ValueError, msg="must have an 'id' column"):
+            with self.assertRaises(ValueError, msg="'id' and/or 'zb_id'"):
                 DataConfig(
                     activity=ActivityConfig(traces_path="/data/traces.zarr"),
-                    body_ids_path=f.name,
+                    neuron_ids_path=f.name,
                 )
 
-    def test_body_ids_wrong_dtype(self):
-        """Reject body IDs parquet with non-integer 'id' column."""
+    def test_neuron_ids_wrong_dtype(self):
+        """Reject neuron IDs parquet with non-integer columns."""
         with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
             pl.DataFrame({"id": ["a", "b"]}).write_parquet(f.name)
             with self.assertRaises(ValueError, msg="must be integer"):
                 DataConfig(
                     activity=ActivityConfig(traces_path="/data/traces.zarr"),
-                    body_ids_path=f.name,
+                    neuron_ids_path=f.name,
                 )
 
 

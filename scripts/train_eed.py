@@ -50,15 +50,17 @@ def main() -> None:
     run_dir = create_run_dir(expt_name)
     print(f"run dir: {run_dir}", flush=True)
 
-    neuron_mapping = resolve_neurons(
-        cfg.data.neuprint,
-        cfg.data.body_ids_path,
-        restrict_zb_ids=True,
-    )
-    traces = load_activity(
-        cfg.data.activity,
-        trace_ids=neuron_mapping[SomaCol.ZB_ID].to_numpy(),
-    )
+    if cfg.data.neuron_ids_path is not None:
+        neuron_mapping = resolve_neurons(
+            cfg.data.neuprint,
+            cfg.data.neuron_ids_path,
+            restrict_zb_ids=True,
+        )
+        trace_ids = neuron_mapping[SomaCol.ZB_ID].to_numpy()
+    else:
+        trace_ids = None
+
+    traces = load_activity(cfg.data.activity, trace_ids=trace_ids)
     device = get_device()
     data = make_eed_data(
         traces,
