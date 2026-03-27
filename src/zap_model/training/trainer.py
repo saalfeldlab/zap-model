@@ -16,6 +16,7 @@ Compilation (e.g. ``torch.compile``) is the model's responsibility.
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path  # noqa: TC003 — pydantic needs this at runtime
 from typing import TYPE_CHECKING
 
@@ -111,11 +112,16 @@ def train(
     best_val_loss = float("inf")
     best_ckpt_path = ckpt_dir / "best.pt"
     global_step = 0
+    t_start = time.monotonic()
+    val_step_fn = getattr(model, "validation_step", model.training_step)
 
     for epoch in range(1, cfg.epochs + 1):
+        t_epoch = time.monotonic()
+
         # --- Train ---
         model.train()
-        train_acc = LossAccumulator()
+        step_acc = LossAccumulator()
+        epoch_train_acc = LossAccumulator()
         for _ in range(cfg.batches_per_epoch):
             batch = next(train_iter)
             losses = model.training_step(batch)
@@ -126,44 +132,78 @@ def train(
                 torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.grad_clip_norm)
             optimizer.step()
 
-            train_acc.accumulate(losses)
+            step_acc.accumulate(losses)
+            epoch_train_acc.accumulate(losses)
             global_step += 1
 
             if cfg.log_every and global_step % cfg.log_every == 0:
-                for key, val in train_acc.mean().items():
+                for key, val in step_acc.mean().items():
                     writer.add_scalar(f"train/{key}", val, global_step)
-                train_acc.reset()
+                step_acc.reset()
 
         if scheduler is not None:
             scheduler.step()
 
+        train_total = epoch_train_acc.mean()["total"]
+
         # --- Validate ---
         val_batch = next(val_iter, None)
-        val_step_fn = getattr(model, "validation_step", model.training_step)
         if val_batch is not None:
             model.eval()
             val_acc = LossAccumulator()
+            rollout_acc = LossAccumulator()
+            t_rollout = time.monotonic()
             with torch.no_grad():
-                val_acc.accumulate(val_step_fn(val_batch))
+                val_batches = [val_batch]
                 for _ in range(cfg.batches_per_epoch - 1):
-                    val_batch = next(val_iter, None)
-                    if val_batch is None:
+                    vb = next(val_iter, None)
+                    if vb is None:
                         break
-                    val_acc.accumulate(val_step_fn(val_batch))
+                    val_batches.append(vb)
+
+                for vb in val_batches:
+                    val_acc.accumulate(model.training_step(vb))
+                    rollout_acc.accumulate(val_step_fn(vb))
+            rollout_duration = time.monotonic() - t_rollout
 
             val_means = val_acc.mean()
+            rollout_means = rollout_acc.mean()
             for key, val in val_means.items():
                 writer.add_scalar(f"val/{key}", val, global_step)
+            for key, val in rollout_means.items():
+                writer.add_scalar(f"val_rollout/{key}", val, global_step)
 
-            val_total = val_means["total"]
-            log.info("epoch %d  val_total=%.6f", epoch, val_total)
+            rollout_total = rollout_means["total"]
+            epoch_duration = time.monotonic() - t_epoch
+            total_duration = time.monotonic() - t_start
+            log.info(
+                "epoch %d/%d | train: %.4e | val: %.4e | rollout: %.4e (%.1fs)"
+                " | duration: %.1fs (total: %.1fs)",
+                epoch,
+                cfg.epochs,
+                train_total,
+                val_means["total"],
+                rollout_total,
+                rollout_duration,
+                epoch_duration,
+                total_duration,
+            )
 
-            # Best checkpoint
-            if val_total < best_val_loss:
-                best_val_loss = val_total
+            # Best checkpoint (based on rollout metric)
+            if rollout_total < best_val_loss:
+                best_val_loss = rollout_total
                 torch.save(model.state_dict(), best_ckpt_path)
         else:
-            log.info("epoch %d  (no validation data)", epoch)
+            epoch_duration = time.monotonic() - t_epoch
+            total_duration = time.monotonic() - t_start
+            log.info(
+                "epoch %d/%d | train: %.4e | (no validation data) | duration: %.1fs (total: %.1fs)",
+                epoch,
+                cfg.epochs,
+                train_total,
+                epoch_duration,
+                total_duration,
+            )
 
         # Periodic checkpoint
         if cfg.checkpoint_every and epoch % cfg.checkpoint_every == 0:
