@@ -16,6 +16,7 @@ class EEDModelConfig(BaseModel, extra="forbid"):
     codec: MLPConfig = MLPConfig(hidden_dims=(128, 128))
     evolver: MLPConfig = MLPConfig(hidden_dims=(128, 128), activation="Tanh")
     rollout_steps: int = 10
+    val_rollout_steps: int = 32
 
 
 class EEDConfig(BaseModel, extra="forbid"):

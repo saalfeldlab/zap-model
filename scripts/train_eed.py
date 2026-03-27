@@ -77,6 +77,11 @@ def main() -> None:
         f"batches_per_epoch: {cfg.training.batches_per_epoch}",
         flush=True,
     )
+    print(
+        f"validation windows: {data.num_val_windows:,}, "
+        f"val_rollout_steps: {cfg.model.val_rollout_steps}",
+        flush=True,
+    )
 
     (run_dir / "command_line.txt").write_text("\n".join(sys.argv))
 

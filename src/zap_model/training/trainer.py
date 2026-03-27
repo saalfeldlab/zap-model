@@ -139,16 +139,17 @@ def train(
 
         # --- Validate ---
         val_batch = next(val_iter, None)
+        val_step_fn = getattr(model, "validation_step", model.training_step)
         if val_batch is not None:
             model.eval()
             val_acc = LossAccumulator()
             with torch.no_grad():
-                val_acc.accumulate(model.training_step(val_batch))
+                val_acc.accumulate(val_step_fn(val_batch))
                 for _ in range(cfg.batches_per_epoch - 1):
                     val_batch = next(val_iter, None)
                     if val_batch is None:
                         break
-                    val_acc.accumulate(model.training_step(val_batch))
+                    val_acc.accumulate(val_step_fn(val_batch))
 
             val_means = val_acc.mean()
             for key, val in val_means.items():

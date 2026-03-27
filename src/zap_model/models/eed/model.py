@@ -71,6 +71,24 @@ class EEDModel(nn.Module):
         total_mse = total_mse / self.cfg.rollout_steps
         return EEDLosses(total=total_mse)
 
+    def validation_step(self, batch: Tensor) -> EEDLosses:
+        """Compute rollout loss over ``cfg.val_rollout_steps`` time steps.
+
+        Args:
+            batch: Tensor of shape ``(B, T, N)`` where ``T >= val_rollout_steps + 1``.
+
+        Returns:
+            :class:`EEDLosses` with mean MSE across rollout steps.
+        """
+        z = self.encode(batch[:, 0, :])
+        total_mse = torch.zeros((), device=batch.device)
+        for t in range(self.cfg.val_rollout_steps):
+            x_hat = self.decode(z)
+            total_mse = total_mse + F.mse_loss(x_hat, batch[:, t + 1, :])
+            z = self.evolve(z)
+        total_mse = total_mse / self.cfg.val_rollout_steps
+        return EEDLosses(total=total_mse)
+
     def param_groups(self) -> list[dict]:
         """Return optimizer parameter groups."""
         return [{"params": list(self.parameters())}]

@@ -21,13 +21,15 @@ class EEDData:
 
     Attributes:
         train_iter: Infinite iterator yielding batches of shape ``(B, rollout_steps+1, N)``.
-        val_iter: Validation iterator (empty for now).
+        val_iter: Infinite iterator yielding batches of shape ``(B, val_rollout_steps+1, N)``.
         num_train_windows: Total number of training windows extracted.
+        num_val_windows: Total number of validation windows extracted.
     """
 
     train_iter: Iterator[Tensor]
     val_iter: Iterator[Tensor]
     num_train_windows: int
+    num_val_windows: int
 
 
 def _infinite_shuffled_batches(
@@ -83,14 +85,27 @@ def make_eed_data(
         msg = "No training windows could be extracted — check splits and rollout_steps"
         raise ValueError(msg)
 
+    val_window_size = model_cfg.val_rollout_steps + 1
+    val_start_list: list[int] = []
+    for cond in splits.train_conditions:
+        r = ranges[cond].val
+        for win_start in range(r.start, r.end - val_window_size + 1):
+            val_start_list.append(win_start)
+
     traces = traces.to(device)
     starts = torch.tensor(start_list, dtype=torch.long, device=device)
 
     train_iter = _infinite_shuffled_batches(traces, starts, window_size, batch_size)
-    val_iter = iter(())
+
+    if val_start_list:
+        val_starts = torch.tensor(val_start_list, dtype=torch.long, device=device)
+        val_iter = _infinite_shuffled_batches(traces, val_starts, val_window_size, batch_size)
+    else:
+        val_iter = iter(())
 
     return EEDData(
         train_iter=train_iter,
         val_iter=val_iter,
         num_train_windows=len(start_list),
+        num_val_windows=len(val_start_list),
     )
