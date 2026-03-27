@@ -150,26 +150,18 @@ def train(
         val_batch = next(val_iter, None)
         if val_batch is not None:
             model.eval()
-            val_acc = LossAccumulator()
             rollout_acc = LossAccumulator()
             t_rollout = time.monotonic()
             with torch.no_grad():
-                val_batches = [val_batch]
+                rollout_acc.accumulate(val_step_fn(val_batch))
                 for _ in range(cfg.batches_per_epoch - 1):
                     vb = next(val_iter, None)
                     if vb is None:
                         break
-                    val_batches.append(vb)
-
-                for vb in val_batches:
-                    val_acc.accumulate(model.training_step(vb))
                     rollout_acc.accumulate(val_step_fn(vb))
             rollout_duration = time.monotonic() - t_rollout
 
-            val_means = val_acc.mean()
             rollout_means = rollout_acc.mean()
-            for key, val in val_means.items():
-                writer.add_scalar(f"val/{key}", val, global_step)
             for key, val in rollout_means.items():
                 writer.add_scalar(f"val_rollout/{key}", val, global_step)
 
@@ -177,12 +169,11 @@ def train(
             epoch_duration = time.monotonic() - t_epoch
             total_duration = time.monotonic() - t_start
             log.info(
-                "epoch %d/%d | train: %.4e | val: %.4e | rollout: %.4e (%.1fs)"
+                "epoch %d/%d | train: %.4e | rollout: %.4e (%.1fs)"
                 " | duration: %.1fs (total: %.1fs)",
                 epoch,
                 cfg.epochs,
                 train_total,
-                val_means["total"],
                 rollout_total,
                 rollout_duration,
                 epoch_duration,
