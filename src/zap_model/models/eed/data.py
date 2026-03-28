@@ -85,7 +85,12 @@ def make_eed_data(
         msg = "No training windows could be extracted — check splits and rollout_steps"
         raise ValueError(msg)
 
-    val_window_size = model_cfg.val_rollout_steps + 1
+    min_val_len = min(
+        (len(ranges[c].val) for c in splits.train_conditions),
+        default=0,
+    )
+    val_window_size = min(model_cfg.val_rollout_steps + 1, min_val_len)
+    assert val_window_size >= 2, f"shortest val range ({min_val_len}) needs at least 2 frames"
     val_start_list: list[int] = []
     for cond in splits.train_conditions:
         r = ranges[cond].val
