@@ -50,6 +50,7 @@ class TrainingConfig(BaseModel, extra="forbid"):
     lr_scheduler_kwargs: dict = {}
     checkpoint_every: int = 10
     log_every: int = 1
+    early_stop_patience_epochs: int | None = 20
 
     @model_validator(mode="after")
     def _check_lr_scheduler(self) -> TrainingConfig:
@@ -112,6 +113,7 @@ def train(
     best_val_loss = float("inf")
     best_ckpt_path = ckpt_dir / "best.pt"
     global_step = 0
+    epochs_without_improvement = 0
     t_start = time.monotonic()
     val_step_fn = getattr(model, "validation_step", model.training_step)
 
@@ -183,7 +185,20 @@ def train(
             # Best checkpoint (based on rollout metric)
             if rollout_total < best_val_loss:
                 best_val_loss = rollout_total
+                epochs_without_improvement = 0
                 torch.save(model.state_dict(), best_ckpt_path)
+            else:
+                epochs_without_improvement += 1
+
+            if (
+                cfg.early_stop_patience_epochs is not None
+                and epochs_without_improvement >= cfg.early_stop_patience_epochs
+            ):
+                log.info(
+                    "early stopping after %d epochs without improvement",
+                    epochs_without_improvement,
+                )
+                break
         else:
             epoch_duration = time.monotonic() - t_epoch
             total_duration = time.monotonic() - t_start
